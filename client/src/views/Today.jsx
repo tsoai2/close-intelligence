@@ -1,5 +1,6 @@
 import { useApp, useQuery } from '../api.js';
 import { Card, Q, Stat, Pill, Tone, Icon, Button, Empty, dt, hours, days, setParams, navigate, href, RecordLink, Person, useUsers, useEntities, Kind, Note, A, openRecord } from '../ui.jsx';
+import { TodayTrajectory } from './Deck.jsx';
 
 export function PageHead({ title, sub, actions }) { return <div className="pagehead"><div><h1>{title}</h1>{sub && <p className="muted">{sub}</p>}</div>{actions && <div className="row gap wrap">{actions}</div>}</div>; }
 export function TaskRow({ t, extra }) { const ent = useEntities(); return <li className="list-row"><button type="button" className="rowbtn" onClick={() => setParams({ task: t.id ?? t.taskId })}>
@@ -19,7 +20,7 @@ export function Today() {
         <div><span className="eyebrow">Holding the date</span>{d.team.criticalHead ? <><div className="big clamp1"><RecordLink target={{ type: 'task', id: d.team.criticalHead.id }}>{d.team.criticalHead.key} {d.team.criticalHead.name}</RecordLink></div><p className="muted small"><Pill status={d.team.criticalHead.status} small /> {d.team.criticalHead.wait_reason || d.team.criticalHead.driver?.note}</p></> : <p className="muted">No open critical task.</p>}</div>
         <div><span className="eyebrow">Review queues</span>{d.team.reviewQueues.length ? <ul className="mini">{d.team.reviewQueues.slice(0, 4).map(r => <li key={r.userId}><span className="grow">{users.name(r.userId)}</span><strong>{r.count}</strong><span className="muted small">{hours(r.minutes)} est.</span></li>)}</ul> : <p className="muted small">Nothing is waiting for review.</p>}</div>
         <div><span className="eyebrow">Needs an owner or a chase</span><ul className="mini">{d.team.unowned.slice(0, 3).map(t => <li key={t.id}><RecordLink target={{ type: 'task', id: t.id }}>{t.key} {t.name}</RecordLink><Tone tone="warn">No owner</Tone></li>)}{d.team.overdueRequests.slice(0, 3).map(r => <li key={r.id}><RecordLink target={{ type: 'request', id: r.id }}>{r.title}</RecordLink><Tone tone="danger">Overdue</Tone></li>)}{!d.team.unowned.length && !d.team.overdueRequests.length && <li className="muted small">Nothing outstanding.</li>}</ul></div>
-      </div></Card>}
+      </div><TodayTrajectory pid={d.period.id} /></Card>}
     <Card title="Recommended next" sub="Ordered by rules: reviews and work on the critical path first, then overdue and returned items. Not AI.">
       {d.actions.length ? <ol className="actions">{d.actions.map((a, i) => <li key={i}><span className="action-n">{i + 1}</span><div className="grow"><div className="row gap"><span className="mono key">{a.key}</span><strong className="clamp1">{a.name}</strong>{a.critical && <Tone tone="danger">Critical path</Tone>}</div><span className="muted small">{a.why}{a.due_at ? ` · due ${dt(a.due_at)}` : ''}</span></div><Button small kind={i === 0 ? 'primary' : 'default'} onClick={() => (a.target ? openRecord(a.target) : setParams({ task: a.taskId }))}>{a.verb}</Button></li>)}</ol>
         : <Empty icon="check" title="You are clear">Nothing is waiting on you in {d.period.name}.</Empty>}</Card>

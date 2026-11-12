@@ -326,8 +326,7 @@ export function icMatching(ctx, p) {
 route('GET', '/periods/:pid/intercompany', { perm: 'read' }, ctx => icMatching(ctx, ctx.period(ctx.params.pid)));
 route('PATCH', '/ic/:id', { perm: 'work' }, ctx => { const i = ctx.own('ic_items', ctx.params.id); ctx.openPeriod(i.period_id); const f = pick(ctx.body, ['owner_id', 'resolution', 'settlement']); if (ctx.body.status) { if (!['open', 'resolved', 'agreed'].includes(ctx.body.status)) throw invalid('Unknown status.'); if (ctx.body.status !== 'open' && !(ctx.body.resolution || i.resolution)?.trim()) throw invalid('Describe the resolution first.'); f.status = ctx.body.status; }
   if (f.resolution) f.resolution = cleanText(f.resolution, 2000); ctx.db.update('ic_items', i.id, f); ctx.audit('ic.updated', 'ic', i.id, f); ctx.changed('ic', 'overview'); return { ok: true }; });
-route('GET', '/periods/:pid/statements', { perm: 'read' }, ctx => {
-  const p = ctx.period(ctx.params.pid); const scope = ctx.query.entity || 'consolidated';
+export function statementFor(ctx, p, scope = 'consolidated') {
   if (scope !== 'consolidated') { const ent = ctx.own('entities', scope); const st = buildStatement(tbCurrent(ctx, p.id, ent.id)); return { scope: ent.code, currency: ent.currency, period: p.name, ...st, basis: 'Entity trial balance in functional currency. Income statement shows period activity.' }; }
   const base = ctx.org.base_currency; const mode = ctx.settings.rounding; const ents = ctx.db.all('SELECT * FROM entities WHERE org_id=? AND active=1', ctx.orgId); const rates = {}, missing = []; const out = []; const fxDetail = [];
   for (const e of ents) {
@@ -343,7 +342,8 @@ route('GET', '/periods/:pid/statements', { perm: 'read' }, ctx => {
   const st = buildStatement(kept); const wpDiff = sum(ic.pairs.map(pr => pr.difference || 0));
   return { scope: 'consolidated', currency: base, period: p.name, ...st, missingRates: missing, rates, fx: fxDetail, eliminations: { receivables: elimRecv, payables: elimPay, difference: icDiff, lines: elim, workpaperDifference: wpDiff, reconciles: icDiff === wpDiff, note: 'Elimination difference is compared with the intercompany matching workpaper total.' },
     basis: missing.length ? 'Incomplete: entities without exchange rates are excluded rather than added in a different currency.' : `Translated to ${base}: balance sheet at closing rates, income statement at average rates. Intercompany receivable/payable accounts eliminated.`, entitiesIncluded: ents.filter(e => !missing.some(m => m.entity === e.code)).map(e => e.code) };
-});
+}
+route('GET', '/periods/:pid/statements', { perm: 'read' }, ctx => statementFor(ctx, ctx.period(ctx.params.pid), ctx.query.entity || 'consolidated'));
 route('GET', '/periods/:pid/fx', { perm: 'read' }, ctx => ctx.db.all('SELECT * FROM fx_rates WHERE org_id=? AND period_id=?', ctx.orgId, ctx.period(ctx.params.pid).id));
 route('PUT', '/periods/:pid/fx', { perm: 'manage' }, ctx => { const p = ctx.openPeriod(ctx.params.pid); const b = ctx.body; if (!/^[A-Z]{3}$/.test(b.from_ccy || '') || !['closing', 'average'].includes(b.rate_type) || !/^\d+(\.\d{1,8})?$/.test(String(b.rate)) || Number(b.rate) <= 0) throw invalid('Enter a currency code, rate type (closing or average) and a positive rate with up to 8 decimals.');
   ctx.db.run('INSERT INTO fx_rates(org_id, period_id, from_ccy, to_ccy, rate_type, rate, rate_date, source) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(org_id, period_id, from_ccy, to_ccy, rate_type) DO UPDATE SET rate=excluded.rate, rate_date=excluded.rate_date, source=excluded.source', ctx.orgId, p.id, b.from_ccy, ctx.org.base_currency, b.rate_type, String(b.rate), b.rate_date || (b.rate_type === 'closing' ? p.end_date : null), cleanText(b.source, 120) || 'Entered manually');

@@ -4,6 +4,11 @@ A month-end close workspace: one place to run the checklist, see what is holding
 date, tie approvals to the exact version of the work that was reviewed, keep the
 supporting documents, and find repeatable ways to make the next close shorter.
 
+The dashboards are animated instrument panels: a completion gauge, a burn-up of approved
+against planned and projected work, stage and process bars, workload and timing charts,
+and a revenue-to-net-income bridge. Every chart is drawn from the app's own records and
+has a table view of the same numbers.
+
 It ships with two fully separate environments behind one switch:
 
 - **Demo** — a fictional distributor (three entities, four periods, about 110 tasks per

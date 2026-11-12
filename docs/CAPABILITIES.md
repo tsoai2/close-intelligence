@@ -8,7 +8,7 @@ Three honest categories:
 - **Deferred** — not built. Where the app mentions it, it says "not connected".
 
 Verification run (offline build environment, Node 22, headless Chrome):
-`npm run check` passed; `npm test` 38 of 38; `npm run test:e2e` 23 of 23 with no browser
+`npm run check` passed; `npm test` 41 of 41; `npm run test:e2e` 25 of 25 with no browser
 console or page errors; screenshots reviewed at 1440, 1024 and 390 px wide in dark and
 light themes. Demo detection against the truth manifest: 14 of 14 planted issues found,
 0 missed, protected document not flagged for retirement, plus 6 additional candidates
@@ -21,6 +21,7 @@ planted data, some are false positives for a person to dismiss).
 | --- | --- |
 | Demo / Live | One switch; separate databases, file stores and sessions; stale responses from the other environment are rejected; Demo reset and scenario changes never touch Live; Live starts empty. |
 | Sign-in and roles | Live: first-administrator setup, email + password, add people, change/reset password, deactivate. Seven roles enforced on the server. Demo: role preview without passwords. |
+| Animated dashboards | Close overview: completion gauge with a due-by-now marker, burn-up of approved against planned and projected tasks, stage bar, progress by process, revenue-to-net-income bridge. Today: compact trajectory. Insights: workload by person, time by process, close duration and on-time trend. Statements: income bridge, revenue and net income by period. Every chart draws recorded or rules-based figures only, labels which, animates once on first view (not at all under reduced motion), reads out on hover and keyboard focus, and has a table twin. Automated tests check each series against the underlying records to the cent. Chart colours were run through a colour-vision and contrast validator in both themes. |
 | Navigation and interface | Today, Close, Process Map, Documents, Insights, Reports; Settings menu; contextual assistant panel; dark and light themes; command palette (Ctrl/⌘ K or /); saved views; bulk task actions; undo for imports and recent task changes; save-state indicator; reduced motion; keyboard path through the graph plus a table alternative; phone layout with bottom navigation. |
 | Close setup | Entities, calendars (Day 0, business-day offsets, holidays, 4-4-5 preview), versioned templates with validation and publish, standard and optional distributor template library, period creation and rollover (assignments and instructions carried forward; evidence and sign-offs fresh). |
 | Tasks | States with enforced transitions, steps, evidence requirements, dependencies, discussion, history, optimistic concurrency with a conflict dialog, preparer ≠ reviewer with a recorded small-team exception. |

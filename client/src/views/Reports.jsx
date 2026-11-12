@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp, useQuery, api, toast, usePref, download } from '../api.js';
 import { Card, Q, Pill, Tone, Button, Empty, Field, Select, Note, Kind, Tabs, Stat, Bars, dt, money, openRecord, RecordLink, useUsers, can, navigate, href } from '../ui.jsx';
+import { DurationChart, OnTimeChart } from './Deck.jsx';
 import { PageHead } from './Today.jsx';
 import { takePrefill } from './Panels.jsx';
 
@@ -44,6 +45,6 @@ function Retro({ pid, period }) {
 }
 function Trends({ pid }) { const q = useQuery(`/periods/${pid}/insights`); const iq = useQuery('/improvements');
   return <Q q={q}>{d => <><div className="stats">{d.history.slice(-4).map(h => <Stat key={h.id} label={h.name} value={h.actualBd != null ? `BD +${h.actualBd}` : 'Open'} sub={`target BD +${h.targetBd}${h.comparable ? '' : ' · scope differs'}`} tone={h.actualBd != null && h.actualBd > h.targetBd ? 'warn' : null} />)}</div>
-    <Card title="Close duration" sub="Business days from period end to lock. Target shown alongside actual."><Bars label="Close duration by period" data={d.history.map(h => ({ label: h.name, values: [{ name: 'Target', value: h.targetBd, tone: 'slate' }, { name: 'Actual', value: h.actualBd, tone: h.actualBd > h.targetBd ? 'amber' : 'teal' }] }))} format={v => (v == null ? 'not closed' : 'BD +' + v)} /></Card>
+    <div className="grid2 deck-pair"><DurationChart d={d} /><OnTimeChart d={d} /></div>
     <Card title="On-time approval and rework" pad={false}><div className="tablewrap"><table className="table"><thead><tr><th>Period</th><th className="num">Tasks</th><th className="num">Approved by due time</th><th className="num">Review rounds</th><th className="num">Reopened</th><th className="num">Late inputs</th><th>Comparable scope</th></tr></thead><tbody>{d.history.map(h => <tr key={h.id}><td>{h.name}</td><td className="num">{h.tasks}</td><td className="num">{h.onTime} / {h.completed}</td><td className="num">{h.reviewRounds}</td><td className="num">{h.reopened}</td><td className="num">{h.lateRequests}</td><td>{h.comparable ? <Tone tone="ok">Yes</Tone> : <Tone tone="warn">No</Tone>}</td></tr>)}</tbody></table></div><p className="muted tiny pad">{d.comparabilityRule} Compare periods of similar scope before drawing conclusions.</p></Card>
     <Card title="Improvements and validated benefits" pad={false}>{iq.data?.improvements.length ? <ul className="list">{iq.data.improvements.map(i => <li key={i.id} className="list-row"><div className="row gap"><span className="grow"><button type="button" className="linklike" onClick={() => navigate(href('insights', 'improvements', { imp: i.id }))}>{i.title}</button><span className="muted tiny block">{i.details.measured ? `Measured: ${i.details.measured.minutes_before - i.details.measured.minutes_after} min less per period` : i.estimate.minutesHigh ? `Projected only: ${Math.round(i.estimate.minutesLow / 6) / 10}–${Math.round(i.estimate.minutesHigh / 6) / 10} h per period` : 'No estimate'}</span></span><Pill status={i.status} small /></div></li>)}</ul> : <p className="muted pad">No improvements recorded yet.</p>}</Card></>}</Q>; }

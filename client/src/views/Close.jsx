@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useApp, useQuery, api, usePref, toast, setApp, download } from '../api.js';
 import { Card, Q, Stat, Pill, Tone, Icon, Button, IconButton, Empty, Tabs, Drawer, Modal, Field, Select, Note, Ring, Progress, Kind, dt, hours, days, pct, money, setParams, navigate, href, useRoute, RecordLink, Person, useUsers, useEntities, can, STATUS, Skeleton, Confirm, A } from '../ui.jsx';
+import { CloseDeck } from './Deck.jsx';
 import { PageHead } from './Today.jsx';
 import { Reconciliations, Journals, Financials, ImportWizard } from './Financial.jsx';
 
@@ -32,6 +33,7 @@ function Overview({ pid }) {
   return <Q q={q} skeleton={10}>{ov => { const t = ov.timeliness, c = ov.completion; const late = t.projected && t.projected > ov.period.targetClose; const m = Object.fromEntries(ov.metrics.map(x => [x.key, x])); const order = ['approved', 'submitted', 'in_progress', 'changes_requested', 'ready', 'waiting', 'blocked', 'not_started']; const total = order.reduce((a, s) => a + ov.counts[s], 0);
     const byId = Object.fromEntries((tq.data || []).map(x => [x.id, x]));
     return <>
+      <CloseDeck pid={pid} ov={ov} />
       <div className="grid2 dims">
         <Card title="Timeliness" sub="Are we going to finish on time?" className="dim">
           <div className="dates"><div><span className="eyebrow">Planned</span><div className="big">{dt(t.planned)}</div><span className="muted tiny">{t.definitions.planned}</span></div>
@@ -46,12 +48,6 @@ function Overview({ pid }) {
           {ov.icOpen > 0 && <p className="small"><Tone tone="warn">{ov.icOpen} open</Tone> intercompany item(s) — <A to={href('close', 'financials', { view: 'ic' })}>review matching</A></p>}
         </Card>
       </div>
-      <Card title="Completion" sub={c.note}>
-        <div className="completion"><div className="ringbox"><Ring value={c.unweighted.done} max={c.unweighted.total} label="Tasks approved" /><div><strong>{c.unweighted.done} of {c.unweighted.total}</strong><span className="muted small block">tasks approved</span></div></div>
-          <div className="ringbox"><Ring value={c.weighted.done} max={c.weighted.total} label="Risk-weighted completion" tone="indigo" /><div><strong>{c.weighted.done} of {c.weighted.total}</strong><span className="muted small block">risk-weighted points (high {c.weighted.weights.high}, medium {c.weighted.weights.medium}, low {c.weighted.weights.low})</span></div></div>
-          <div className="grow"><div className="statusbar" role="img" aria-label={order.map(s => `${STATUS[s][0]}: ${ov.counts[s]}`).join(', ')}>{order.map(s => ov.counts[s] ? <span key={s} className={`seg seg-${STATUS[s][1]}`} style={{ flexGrow: ov.counts[s] }} title={`${STATUS[s][0]}: ${ov.counts[s]}`} /> : null)}</div>
-            <ul className="legend">{order.filter(s => ov.counts[s]).map(s => <li key={s}><span className={`dot seg-${STATUS[s][1]}`} />{STATUS[s][0]} <strong>{ov.counts[s]}</strong> <span className="muted">({pct(ov.counts[s], total)}%)</span></li>)}{ov.counts.not_applicable > 0 && <li className="muted">Not applicable {ov.counts.not_applicable} (excluded)</li>}</ul></div></div>
-      </Card>
       <div className="stats stats-wide">{['overdue', 'blocked', 'reviews', 'rereview', 'evidence', 'highrisk', 'unassigned', 'requests', 'exceptions', 'prepared'].map(k => <Stat key={k} label={m[k].label} value={m[k].value} denom={m[k].denominator} tone={m[k].value && ['overdue', 'blocked', 'rereview', 'unassigned', 'requests'].includes(k) ? 'warn' : null} sub="Show calculation" onClick={() => setParams({ metric: k })} />)}</div>
       <MetricDrawer ov={ov} tasks={tq.data} />
     </>; }}</Q>;

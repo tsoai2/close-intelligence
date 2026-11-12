@@ -1,8 +1,9 @@
 // Dashboard panels built from the chart kit. Each panel names its source (recorded or rules-based)
 // and offers the same numbers as a table.
+import { useRef } from 'react';
 import { useQuery } from '../api.js';
 import { Kind, Skeleton, Empty, A, dt, hours, money, href } from '../ui.jsx';
-import { Viz, Gauge, Trajectory, Pipeline, HStack, Columns, Waterfall, compactMoney, dayLabel, S1, S2, S3, REF } from '../charts.jsx';
+import { useReveal, Viz, Gauge, Trajectory, Pipeline, HStack, Columns, Waterfall, compactMoney, dayLabel, S1, S2, S3, REF } from '../charts.jsx';
 
 const PIPE_ORDER = ['approved', 'in_review', 'in_progress', 'ready', 'not_started', 'attention'];
 const pipeColor = k => ({ approved: 'var(--o5)', in_review: 'var(--o4)', in_progress: 'var(--o3)', ready: 'var(--o2)', not_started: 'var(--o1)', attention: 'var(--attn)' }[k]);
@@ -13,10 +14,10 @@ const burnNote = b => (b.today ? `${b.basis.projected}${b.rereview ? ` ${b.rerev
 /** Hero: how far along, and whether the line is going to land on the target. */
 function Hero({ d, ov }) {
   const b = d.burn; const done = ov.completion.unweighted; const t = ov.timeliness; const locked = ov.period.status === 'locked'; const late = !locked && t.projected && t.projected > ov.period.targetClose;
-  const planNow = locked ? null : t.dueByNow.total;
-  return <section className="hud deck-hero" aria-label="Close trajectory"><span className="scan" aria-hidden="true" />
+  const planNow = locked ? null : t.dueByNow.total; const ref = useRef(null); const on = useReveal(ref);
+  return <section ref={ref} className={`hud deck-hero${on ? ' is-on' : ''}`} aria-label="Close trajectory"><span className="scan" aria-hidden="true" />
     <div className="hero-left">
-      <Gauge value={done.done} max={done.total} plan={planNow} label="Tasks approved" caption={`${done.done} of ${done.total} approved`} />
+      <Gauge value={done.done} max={done.total} plan={planNow} on={on} label="Tasks approved" caption={`${done.done} of ${done.total} approved`} />
       <dl className="hero-facts">
         {planNow != null && <div><dt><i className="vkey vkey-tick" style={{ '--k': 'var(--text)' }} />Due by now</dt><dd>{planNow} of {done.total}</dd></div>}
         <div><dt>Risk-weighted</dt><dd>{ov.completion.weighted.done} of {ov.completion.weighted.total} points</dd></div>

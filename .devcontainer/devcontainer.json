@@ -1,0 +1,10 @@
+{
+  "name": "CLOSE INTELLIGENCE",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "forwardPorts": [4600],
+  "portsAttributes": {
+    "4600": { "label": "CLOSE INTELLIGENCE", "onAutoForward": "openBrowser" }
+  },
+  "containerEnv": { "PORT": "4600", "CI_TRUST_PROXY": "1" },
+  "postAttachCommand": "npm start"
+}

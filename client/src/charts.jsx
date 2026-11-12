@@ -25,16 +25,19 @@ export function useSize(ref) {
   useEffect(() => { const el = ref.current; if (!el) return; setW(el.clientWidth); if (typeof ResizeObserver !== 'function') return; const ro = new ResizeObserver(e => setW(Math.round(e[0].contentRect.width))); ro.observe(el); return () => ro.disconnect(); }, [ref]);
   return w;
 }
-/** True once the element has been on screen. Reduced motion: true immediately, so nothing animates. */
+/** True while the element is on screen, false again once it has fully left, so its entry animation
+ *  plays each time it comes into view. Reduced motion: always true, so nothing animates. */
 export function useReveal(ref) {
   const [on, setOn] = useState(reduced);
-  useEffect(() => { if (on) return; const el = ref.current; if (!el || typeof IntersectionObserver !== 'function') { setOn(true); return; } const io = new IntersectionObserver(e => { if (e.some(x => x.isIntersecting)) { setOn(true); io.disconnect(); } }, { threshold: 0.15 }); io.observe(el); return () => io.disconnect(); }, [ref, on]);
+  useEffect(() => { if (reduced()) { setOn(true); return; } const el = ref.current; if (!el || typeof IntersectionObserver !== 'function') { setOn(true); return; }
+    const io = new IntersectionObserver(es => { for (const e of es) { if (e.isIntersecting && (e.intersectionRatio >= 0.12 || e.intersectionRect.height >= 120)) setOn(true); else if (!e.isIntersecting) setOn(false); } }, { threshold: [0, 0.05, 0.12, 0.3] });
+    io.observe(el); return () => io.disconnect(); }, [ref]);
   return on;
 }
-/** Counts up to the value once. Screen readers and reduced motion get the final value only. */
+/** Counts up to the value each time it comes into view. Screen readers and reduced motion get the final value only. */
 export function CountUp({ value, format = v => Math.round(v).toLocaleString('en-US'), on = true, ms = 1200 }) {
   const [v, setV] = useState(reduced() ? value : 0);
-  useEffect(() => { if (!on) return; if (reduced()) { setV(value); return; } let raf, t0; const tick = t => { t0 ??= t; const k = Math.min(1, (t - t0) / ms); setV(value * (1 - Math.pow(1 - k, 3))); if (k < 1) raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, [value, on, ms]);
+  useEffect(() => { if (reduced()) { setV(value); return; } if (!on) { setV(0); return; } let raf, t0; const tick = t => { t0 ??= t; const k = Math.min(1, (t - t0) / ms); setV(value * (1 - Math.pow(1 - k, 3))); if (k < 1) raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, [value, on, ms]);
   return <span className="countup"><span className="sr-only">{format(value)}</span><span aria-hidden="true">{format(v)}</span></span>;
 }
 

@@ -59,7 +59,9 @@ export async function handle(req, res) {
     if (!match) throw new HttpError(404, 'NOT_FOUND', 'Unknown API path.');
     const mutating = req.method !== 'GET' && req.method !== 'HEAD';
     if (mutating) {
-      const origin = req.headers.origin; if (origin && new URL(origin).host !== req.headers.host) throw new HttpError(403, 'ORIGIN', 'Cross-site request rejected.');
+      // Behind a reverse proxy or port forwarder the public host arrives in X-Forwarded-Host; it is honoured only when CI_TRUST_PROXY=1.
+      const origin = req.headers.origin; const hosts = [req.headers.host, ...(process.env.CI_TRUST_PROXY === '1' ? String(req.headers['x-forwarded-host'] || '').split(',').map(h => h.trim()).filter(Boolean) : [])];
+      if (origin && !hosts.includes(new URL(origin).host)) throw new HttpError(403, 'ORIGIN', 'Cross-site request rejected.');
       // The client states which environment it believes it is talking to; a mismatch means a stale tab or in-flight request.
       const claimed = req.headers['x-ci-env']; if (claimed && claimed !== env) throw new HttpError(409, 'ENV_MISMATCH', 'This request was prepared for a different environment and was not applied.');
     }

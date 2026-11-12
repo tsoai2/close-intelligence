@@ -8,7 +8,7 @@ Three honest categories:
 - **Deferred** — not built. Where the app mentions it, it says "not connected".
 
 Verification run (offline build environment, Node 22, headless Chrome):
-`npm run check` passed; `npm test` 41 of 41; `npm run test:e2e` 25 of 25 with no browser
+`npm run check` passed; `npm test` 42 of 42; `npm run test:e2e` 26 of 26 with no browser
 console or page errors; screenshots reviewed at 1440, 1024 and 390 px wide in dark and
 light themes. Demo detection against the truth manifest: 14 of 14 planted issues found,
 0 missed, protected document not flagged for retirement, plus 6 additional candidates
@@ -21,7 +21,7 @@ planted data, some are false positives for a person to dismiss).
 | --- | --- |
 | Demo / Live | One switch; separate databases, file stores and sessions; stale responses from the other environment are rejected; Demo reset and scenario changes never touch Live; Live starts empty. |
 | Sign-in and roles | Live: first-administrator setup, email + password, add people, change/reset password, deactivate. Seven roles enforced on the server. Demo: role preview without passwords. |
-| Animated dashboards | Close overview: completion gauge with a due-by-now marker, burn-up of approved against planned and projected tasks, stage bar, progress by process, revenue-to-net-income bridge. Today: compact trajectory. Insights: workload by person, time by process, close duration and on-time trend. Statements: income bridge, revenue and net income by period. Every chart draws recorded or rules-based figures only, labels which, animates once on first view (not at all under reduced motion), reads out on hover and keyboard focus, and has a table twin. Automated tests check each series against the underlying records to the cent. Chart colours were run through a colour-vision and contrast validator in both themes. |
+| Animated dashboards | Close overview: completion gauge with a due-by-now marker, burn-up of approved against planned and projected tasks, stage bar, progress by process, revenue-to-net-income bridge. Today: compact trajectory. Insights: workload by person, time by process, close duration and on-time trend. Statements: income bridge, revenue and net income by period. Every chart draws recorded or rules-based figures only, labels which, animates each time it comes into view (not at all under reduced motion), reads out on hover and keyboard focus, and has a table twin. Automated tests check each series against the underlying records to the cent. Chart colours were run through a colour-vision and contrast validator in both themes. |
 | Navigation and interface | Today, Close, Process Map, Documents, Insights, Reports; Settings menu; contextual assistant panel; dark and light themes; command palette (Ctrl/⌘ K or /); saved views; bulk task actions; undo for imports and recent task changes; save-state indicator; reduced motion; keyboard path through the graph plus a table alternative; phone layout with bottom navigation. |
 | Close setup | Entities, calendars (Day 0, business-day offsets, holidays, 4-4-5 preview), versioned templates with validation and publish, standard and optional distributor template library, period creation and rollover (assignments and instructions carried forward; evidence and sign-offs fresh). |
 | Tasks | States with enforced transitions, steps, evidence requirements, dependencies, discussion, history, optimistic concurrency with a conflict dialog, preparer ≠ reviewer with a recorded small-team exception. |
@@ -37,6 +37,7 @@ planted data, some are false positives for a person to dismiss).
 | Rules engine | 18 deterministic rules; each finding carries evidence, coverage, confidence, limitations and control implication; dismissals persist. |
 | Improvements | Proposal → Under review → Approved → Pilot → Implemented → Validated / Rejected; capacity hours and cash kept separate; overlapping savings flagged rather than double-counted. |
 | Reports and exports | Close status report, PDF package, Excel workbook, CSV exports with formula-injection protection, JSON backup. |
+| Demo personalisation | The Demo company can be renamed in Settings; an OpenAI key can be linked in Demo on request (tested against a local stand-in only), after which the assistant answers live on the fictional data and says so. Both survive Reset demo and scenario changes. The default Demo persona is Taka Soai. |
 | Assistant without a key | Answers from permitted records by fixed rules, with citations; labelled "sample" in Demo and "AI not connected" in Live. |
 | Feedback | Form → preview → Outlook compose link (work/school or Outlook.com) addressed to the fixed recipient, with mail-app and copy fallbacks; never reports "sent". Verified by intercepting the URL; no real message was sent. |
 | Audit | Append-only, hash-chained log with an in-app integrity check. |
@@ -47,6 +48,7 @@ planted data, some are false positives for a person to dismiss).
 | --- | --- | --- |
 | OpenAI connection | Key entry, encrypted storage, connection test, model list fetched from the account (no model names in the code), Responses API call with a strict schema, retries, timeout, cancel, spend estimate and limits, citation and action filtering — all exercised against a **local stand-in** for the OpenAI API. **Not run against the real service.** It uses direct HTTPS calls, not the official SDK. | An OpenAI API key (API billing is separate from a ChatGPT subscription). Press Test in Settings → AI connection and confirm a real answer before relying on it. |
 | Outlook draft | The compose link format is the commonly used Outlook on the web deep link; Microsoft does not publish it as a supported interface. Verified only that the app opens the correct URL. | Click Feedback once with your account. If your tenant handles the link differently, use the "Open in my email app" or copy fallback. |
+| Browser use with nothing installed | A GitHub Codespaces set-up (`.devcontainer`) and a `Dockerfile` are included; neither has been run. See `docs/RUN_IN_BROWSER.md`. | A GitHub account (Codespaces) or a hosting account. |
 | Shared deployment | Runs anywhere Node 22 runs; secure-cookie, secret-key and data-folder settings exist. No deployment was performed. | HTTPS, `CI_SECRET_KEY`, persistent disk, backups, access restriction — see `docs/DEPLOYMENT.md`. |
 | Malware scanning | Hook exists; uploads are marked "not scanned". | A scanner service. |
 

@@ -16,6 +16,11 @@ const BILLING = { text: 'This is an OpenAI API connection. API usage is billed t
 const settingsRow = (db, orgId) => db.get('SELECT * FROM ai_settings WHERE org_id=?', orgId) || { org_id: orgId, status: 'disconnected', spend_limit_cents: 2000, allowed_classes: '["procedure","policy"]', redact: 1, user_rate_per_hour: 30 };
 function upsert(db, orgId, f) { if (db.get('SELECT 1 x FROM ai_settings WHERE org_id=?', orgId)) db.run(`UPDATE ai_settings SET ${Object.keys(f).map(k => k + '=?').join(',')} WHERE org_id=?`, ...Object.values(f).map(v => (typeof v === 'object' && v !== null ? JSON.stringify(v) : v)), orgId); else db.insert('ai_settings', { org_id: orgId, ...f }); }
 const apiKeyFor = s => (s.key_cipher ? decryptSecret(s.key_cipher) : process.env.OPENAI_API_KEY || null);
+// Demo calls OpenAI only when someone has deliberately saved a key in Demo. The server-wide OPENAI_API_KEY is for Live only.
+const keyFor = (ctx, s) => (ctx.env === 'demo' ? (s.key_cipher ? decryptSecret(s.key_cipher) : null) : apiKeyFor(s));
+// Who may manage the key: administrators in Live; in Demo also the close manager persona, so the connection can be shown without switching role.
+const canConfigure = ctx => ctx.can('admin') || (ctx.env === 'demo' && ctx.can('manage'));
+const needConfigure = ctx => { if (!canConfigure(ctx)) throw forbidden('Only an administrator can manage the OpenAI connection.'); };
 const monthSpend = (db, orgId) => db.val("SELECT COALESCE(SUM(est_cost_cents),0) FROM ai_usage WHERE org_id=? AND mode='live' AND substr(at,1,7)=?", orgId, new Date().toISOString().slice(0, 7));
 
 /** Call the OpenAI REST API with timeout, bounded retries on 429/5xx and caller cancellation. */
@@ -44,32 +49,32 @@ const NON_TEXT = /(embedding|whisper|tts|audio|dall-e|image|moderation|realtime|
 async function listModels(key) { const r = await openaiFetch('/models', { key, timeoutMs: 15000, retries: 1 }); return (r.data || []).map(m => m.id).filter(id => !NON_TEXT.test(id)).sort(); }
 
 function publicSettings(ctx) {
-  const s = settingsRow(ctx.db, ctx.orgId); const demo = ctx.env === 'demo';
-  return { environment: ctx.env, status: demo ? 'sample_mode' : s.status, model: demo ? null : s.model, keyHint: demo ? null : s.key_hint ? `••••${s.key_hint}` : process.env.OPENAI_API_KEY ? 'provided by server environment (OPENAI_API_KEY)' : null, lastTestedAt: s.last_tested_at, lastError: s.last_error,
+  const s = settingsRow(ctx.db, ctx.orgId); const demo = ctx.env === 'demo'; const demoKeyed = demo && !!s.key_cipher;
+  return { environment: ctx.env, canConfigure: canConfigure(ctx), status: demo && !demoKeyed ? 'sample_mode' : s.status, model: demo && !demoKeyed ? null : s.model, keyHint: s.key_hint ? `••••${s.key_hint}` : !demo && process.env.OPENAI_API_KEY ? 'provided by server environment (OPENAI_API_KEY)' : null, lastTestedAt: s.last_tested_at, lastError: s.last_error,
     spendLimitCents: s.spend_limit_cents, monthEstimatedCents: Math.round(monthSpend(ctx.db, ctx.orgId)), priceInPerMtokCents: s.price_in_per_mtok_cents, priceOutPerMtokCents: s.price_out_per_mtok_cents, allowedClasses: J(s.allowed_classes, []), redact: !!s.redact, userRatePerHour: s.user_rate_per_hour,
     billing: BILLING, forbidden: FORBIDDEN_NOTE,
-    notes: [demo ? 'Demo never calls OpenAI. The assistant shows clearly labelled sample responses assembled from demo records by fixed rules.' : 'The key is stored encrypted on the server and is never sent to the browser.',
+    notes: [demo ? (demoKeyed ? 'A key is connected in Demo: the assistant sends the fictional demo records needed for each question to OpenAI and shows the real answer. Disconnect the key to return to sample responses.' : 'Demo does not call OpenAI unless you connect a key here. Until then the assistant shows clearly labelled sample responses assembled from demo records by fixed rules.') : 'The key is stored encrypted on the server and is never sent to the browser.',
+      ...(demo ? ['The key is stored encrypted on the server, in the Demo database only. It is never sent to the browser and is never used by Live. It is kept when you reset Demo or change scenario.', 'Demo has no sign-in. Anyone who can open this Demo address can use the assistant with a key connected here, up to the spending stop below. Connect one only on your own computer or a private address, and disconnect it afterwards.'] : []),
       'The spending limit is this application’s own estimate-based stop. It is not a provider-side billing cap; set usage limits in your OpenAI account as well.', 'Cost estimates use the per-token prices you enter below. If none are entered, tokens are counted but cost is not estimated.',
       'Requests are sent with store=false. This app makes no claim about OpenAI’s retention or training practices; review your OpenAI organization’s data controls.', 'No files or indexes are stored at OpenAI by this app; only the text excerpts needed for each question are sent.'] };
 }
 route('GET', '/ai/settings', { perm: 'read' }, ctx => publicSettings(ctx));
-const liveOnly = ctx => { if (ctx.env !== 'live') throw invalid('The OpenAI connection is configured in Live only. Demo uses labelled sample responses and never calls OpenAI.'); };
-route('PUT', '/ai/key', { perm: 'admin' }, async ctx => {
-  liveOnly(ctx); const key = String(ctx.body.apiKey || '').trim(); if (key.length < 20 || /\s/.test(key)) throw invalid('That does not look like an API key.');
+route('PUT', '/ai/key', { perm: 'read' }, async ctx => {
+  needConfigure(ctx); const key = String(ctx.body.apiKey || '').trim(); if (key.length < 20 || /\s/.test(key)) throw invalid('That does not look like an API key.');
   let models; try { models = await listModels(key); } catch (e) { ctx.audit('ai.key_rejected', 'org', ctx.orgId, { code: e.code }); throw e; } // the key is never logged or stored when the test fails
   upsert(ctx.db, ctx.orgId, { key_cipher: encryptSecret(key), key_hint: key.slice(-4), status: 'connected', last_tested_at: ctx.now(), last_error: null, updated_by: ctx.user.id, updated_at: ctx.now() });
   ctx.audit('ai.key_saved', 'org', ctx.orgId, { hint: key.slice(-4) }); ctx.changed('ai', 'me'); return { ...publicSettings(ctx), models };
 });
-route('POST', '/ai/test', { perm: 'admin' }, async ctx => { liveOnly(ctx); const s = settingsRow(ctx.db, ctx.orgId); const key = apiKeyFor(s); if (!key) throw invalid('No API key is configured.');
+route('POST', '/ai/test', { perm: 'read' }, async ctx => { needConfigure(ctx); const s = settingsRow(ctx.db, ctx.orgId); const key = keyFor(ctx, s); if (!key) throw invalid('No API key is configured.');
   try { const models = await listModels(key); upsert(ctx.db, ctx.orgId, { status: 'connected', last_tested_at: ctx.now(), last_error: null }); ctx.changed('ai', 'me'); return { ok: true, models, ...publicSettings(ctx) }; }
   catch (e) { upsert(ctx.db, ctx.orgId, { status: 'error', last_tested_at: ctx.now(), last_error: e.message }); ctx.changed('ai', 'me'); throw e; } });
-route('GET', '/ai/models', { perm: 'admin' }, async ctx => { liveOnly(ctx); const key = apiKeyFor(settingsRow(ctx.db, ctx.orgId)); if (!key) throw invalid('Connect an API key first.'); return { models: await listModels(key), note: 'Listed live from your OpenAI account. Models that are clearly not text models are hidden; not every listed model necessarily supports structured outputs.' }; });
-route('PATCH', '/ai/settings', { perm: 'admin' }, ctx => { const b = ctx.body; const f = {};
-  if (b.model !== undefined) { liveOnly(ctx); if (b.model && !/^[\w.\-:]{2,80}$/.test(b.model)) throw invalid('Choose a model from the list.'); f.model = b.model || null; }
+route('GET', '/ai/models', { perm: 'read' }, async ctx => { needConfigure(ctx); const key = keyFor(ctx, settingsRow(ctx.db, ctx.orgId)); if (!key) throw invalid('Connect an API key first.'); return { models: await listModels(key), note: 'Listed live from your OpenAI account. Models that are clearly not text models are hidden; not every listed model necessarily supports structured outputs.' }; });
+route('PATCH', '/ai/settings', { perm: 'read' }, ctx => { needConfigure(ctx); const b = ctx.body; const f = {};
+  if (b.model !== undefined) { if (b.model && !/^[\w.\-:]{2,80}$/.test(b.model)) throw invalid('Choose a model from the list.'); f.model = b.model || null; }
   for (const [k, col] of [['spendLimitCents', 'spend_limit_cents'], ['priceInPerMtokCents', 'price_in_per_mtok_cents'], ['priceOutPerMtokCents', 'price_out_per_mtok_cents'], ['userRatePerHour', 'user_rate_per_hour']]) if (b[k] !== undefined) { if (b[k] !== null && (!Number.isInteger(b[k]) || b[k] < 0)) throw invalid('Limits and prices must be non-negative whole numbers.'); f[col] = b[k]; }
   if (b.allowedClasses) { const ok = ['workpaper', 'evidence', 'procedure', 'policy', 'report', 'import']; if (!Array.isArray(b.allowedClasses) || b.allowedClasses.some(c => !ok.includes(c))) throw invalid('Unknown document class.'); f.allowed_classes = b.allowedClasses; }
   if (b.redact !== undefined) f.redact = b.redact ? 1 : 0; f.updated_by = ctx.user.id; f.updated_at = ctx.now(); upsert(ctx.db, ctx.orgId, f); ctx.audit('ai.settings_updated', 'org', ctx.orgId, { ...f }); ctx.changed('ai'); return publicSettings(ctx); });
-route('DELETE', '/ai/key', { perm: 'admin' }, ctx => { liveOnly(ctx); upsert(ctx.db, ctx.orgId, { key_cipher: null, key_hint: null, status: 'disconnected', model: null, last_error: null, updated_by: ctx.user.id, updated_at: ctx.now() }); ctx.audit('ai.key_removed', 'org', ctx.orgId, {}); ctx.changed('ai', 'me'); return publicSettings(ctx); });
+route('DELETE', '/ai/key', { perm: 'read' }, ctx => { needConfigure(ctx); upsert(ctx.db, ctx.orgId, { key_cipher: null, key_hint: null, status: 'disconnected', model: null, last_error: null, updated_by: ctx.user.id, updated_at: ctx.now() }); ctx.audit('ai.key_removed', 'org', ctx.orgId, {}); ctx.changed('ai', 'me'); return publicSettings(ctx); });
 route('GET', '/ai/usage', { perm: 'manage' }, ctx => ({ months: ctx.db.all("SELECT substr(at,1,7) month, mode, COUNT(*) calls, COALESCE(SUM(input_tokens),0) input_tokens, COALESCE(SUM(output_tokens),0) output_tokens, COALESCE(SUM(est_cost_cents),0) est_cost_cents FROM ai_usage WHERE org_id=? GROUP BY 1,2 ORDER BY 1 DESC", ctx.orgId),
   byUser: ctx.db.all("SELECT user_id, COUNT(*) calls, COALESCE(SUM(est_cost_cents),0) est_cost_cents FROM ai_usage WHERE org_id=? AND substr(at,1,7)=? GROUP BY user_id", ctx.orgId, new Date().toISOString().slice(0, 7)), note: 'Costs are estimates from token counts and the prices entered in settings; your OpenAI invoice is authoritative.' }));
 
@@ -141,7 +146,7 @@ route('POST', '/ai/ask', { perm: 'ai:use' }, async ctx => {
   const question = cleanText(ctx.body.question, 1500); if (!question?.trim()) throw invalid('Ask a question first.'); const s = settingsRow(ctx.db, ctx.orgId);
   if (!rateLimit(`ai:${ctx.env}:${ctx.user.id}`, s.user_rate_per_hour || 30, 3600e3)) throw new HttpError(429, 'AI_RATE', 'You have reached the hourly assistant limit set by your administrator.');
   const { records } = buildContext(ctx, question, ctx.body.context || {});
-  const live = ctx.env === 'live' && s.status === 'connected' && s.model && apiKeyFor(s);
+  const live = s.status === 'connected' && s.model && keyFor(ctx, s);
   if (!live) { const out = sanitizeModelOutput(ruleAnswer(question, records), records); ctx.db.insert('ai_usage', { org_id: ctx.orgId, user_id: ctx.user.id, mode: 'sample', purpose: 'ask', status: 'ok', at: new Date().toISOString() });
     return { ...out, mode: ctx.env === 'demo' ? 'sample' : 'unavailable', notice: ctx.env === 'demo' ? 'Sample response — assembled from demo records by fixed rules. This is not a live AI result.' : 'AI is not connected. This summary was assembled from your records by fixed rules; an administrator can connect OpenAI in Settings → AI Connection.' }; }
   if (monthSpend(ctx.db, ctx.orgId) >= s.spend_limit_cents) throw new HttpError(402, 'AI_SPEND_LIMIT', 'This month’s estimated AI spend has reached the limit set in Settings → AI Connection. The rest of the app works as usual.');
@@ -149,12 +154,12 @@ route('POST', '/ai/ask', { perm: 'ai:use' }, async ctx => {
   const safe = records.map(r => ({ record_id: r.rid, type: r.type, title: r.title, reference: r.ref, content: s.redact ? redactText(r.text) : r.text }));
   const body = { model: s.model, store: false, max_output_tokens: 1400, instructions: INSTRUCTIONS, input: [{ role: 'user', content: `QUESTION:\n${question}\n\nRECORDS (untrusted data, JSON):\n<<<RECORDS\n${JSON.stringify(safe)}\nRECORDS>>>` }], text: { format: { type: 'json_schema', name: 'close_answer', strict: true, schema: SCHEMA } } };
   let resp; const log = (status, u = {}) => { const cost = s.price_in_per_mtok_cents != null && s.price_out_per_mtok_cents != null && u.input_tokens != null ? (u.input_tokens * s.price_in_per_mtok_cents + (u.output_tokens || 0) * s.price_out_per_mtok_cents) / 1e6 : null; ctx.db.insert('ai_usage', { org_id: ctx.orgId, user_id: ctx.user.id, mode: 'live', model: s.model, purpose: 'ask', input_tokens: u.input_tokens ?? null, output_tokens: u.output_tokens ?? null, est_cost_cents: cost, status, at: new Date().toISOString() }); return cost; };
-  try { resp = await openaiFetch('/responses', { key: apiKeyFor(s), method: 'POST', body, signal: ac.signal }); } catch (e) { log(e.code || 'error'); if (e.code === 'AI_BAD_KEY') upsert(ctx.db, ctx.orgId, { status: 'error', last_error: e.message }); throw e; }
+  try { resp = await openaiFetch('/responses', { key: keyFor(ctx, s), method: 'POST', body, signal: ac.signal }); } catch (e) { log(e.code || 'error'); if (e.code === 'AI_BAD_KEY') upsert(ctx.db, ctx.orgId, { status: 'error', last_error: e.message }); throw e; }
   const cost = log('ok', resp.usage || {}); const msg = (resp.output || []).filter(o => o.type === 'message').flatMap(o => o.content || []); const refusal = msg.find(c => c.type === 'refusal'); const text = msg.filter(c => c.type === 'output_text').map(c => c.text).join('');
   if (refusal) return { mode: 'live', answer: 'The model declined to answer this question.', citations: [], missing: [], proposals: [], notice: String(refusal.refusal).slice(0, 300), usage: resp.usage, estCostCents: cost };
   let parsed; try { parsed = JSON.parse(text); } catch { throw new HttpError(502, 'AI_BAD_OUTPUT', resp.status === 'incomplete' ? 'The model’s answer was cut off before it finished. Try a narrower question.' : 'The model returned an answer this app could not read. Try again.'); }
   const out = sanitizeModelOutput(parsed, records);
-  return { ...out, mode: 'live', model: s.model, usage: pick(resp.usage || {}, ['input_tokens', 'output_tokens', 'total_tokens']), estCostCents: cost, notice: [out.droppedCitations.length ? `${out.droppedCitations.length} citation(s) pointed at records that were not supplied and were removed.` : '', out.rejectedProposals.length ? `${out.rejectedProposals.length} suggested action(s) were outside what the assistant may propose and were removed.` : '', !out.citations.length ? 'This answer has no citations to your records; treat it as unverified.' : ''].filter(Boolean).join(' ') || null,
+  return { ...out, mode: 'live', demoData: ctx.env === 'demo', model: s.model, usage: pick(resp.usage || {}, ['input_tokens', 'output_tokens', 'total_tokens']), estCostCents: cost, notice: [out.droppedCitations.length ? `${out.droppedCitations.length} citation(s) pointed at records that were not supplied and were removed.` : '', out.rejectedProposals.length ? `${out.rejectedProposals.length} suggested action(s) were outside what the assistant may propose and were removed.` : '', !out.citations.length ? 'This answer has no citations to your records; treat it as unverified.' : ''].filter(Boolean).join(' ') || null,
     recordsSent: safe.length, forbidden: FORBIDDEN_NOTE };
 });
 export { forbidden };

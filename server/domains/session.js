@@ -24,7 +24,11 @@ route('POST', '/session/preview', { public: true, env: 'demo' }, ctx => {
 });
 route('POST', '/reset', { env: 'demo' }, ctx => {
   const scenario = DEMO_SCENARIOS[ctx.body.scenario] ? ctx.body.scenario : 'baseline'; const email = ctx.user.email;
-  wipeDemo(); const db = dbFor('demo'); seedDemo(db, scenario);
+  // Two things the presenter set up survive a reset or scenario change: a connected OpenAI key and a custom company name.
+  const old = dbFor('demo'); const keepAi = old.get('SELECT key_cipher, key_hint, model, status, last_tested_at, last_error, spend_limit_cents, price_in_per_mtok_cents, price_out_per_mtok_cents, allowed_classes, redact, user_rate_per_hour FROM ai_settings LIMIT 1'); const keepName = old.get('SELECT name FROM orgs LIMIT 1')?.name;
+  wipeDemo(); const db = dbFor('demo'); seedDemo(db, scenario); const org = db.get('SELECT id, name FROM orgs LIMIT 1');
+  if (keepAi?.key_cipher) { db.run('DELETE FROM ai_settings WHERE org_id=?', org.id); db.insert('ai_settings', { org_id: org.id, ...keepAi }); }
+  if (keepName && keepName !== org.name) db.update('orgs', org.id, { name: keepName });
   const user = db.get('SELECT * FROM users WHERE email=?', email) || db.get("SELECT * FROM users WHERE role='close_manager' LIMIT 1");
   const s = createSession(db, user, { preview: true }); ctx.res.setHeader('Set-Cookie', sessionCookie('demo', s.token));
   return { ok: true, scenario };

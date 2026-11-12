@@ -13,7 +13,8 @@ It ships with two fully separate environments behind one switch:
 
 - **Demo** — a fictional distributor (three entities, four periods, about 110 tasks per
   period, 15 people, about 90 real downloadable synthetic files) with planted problems
-  to explore. Nothing in Demo is real, and Demo never sends anything or calls OpenAI.
+  to explore. Nothing in Demo is real and Demo never sends anything. It calls OpenAI only
+  if you choose to connect a key in Demo.
 - **Live** — starts empty. You create the first administrator account, import your own
   checklist and trial balance, and invite your team.
 
@@ -35,6 +36,7 @@ Then open <http://localhost:4600>. The first start creates the databases and see
 | Try it as a finance user, no technical background | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) |
 | See honestly what is built, what needs configuration, what is deferred | [docs/CAPABILITIES.md](docs/CAPABILITIES.md) |
 | Change the code, run the checks | [docs/DEVELOPER.md](docs/DEVELOPER.md) |
+| Use it in a browser with nothing installed | [docs/RUN_IN_BROWSER.md](docs/RUN_IN_BROWSER.md) |
 | Put it on a server for a team | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | Understand the security model and its limits | [docs/SECURITY.md](docs/SECURITY.md) |
 | See the problems planted in the demo data | [docs/demo-truth-manifest.json](docs/demo-truth-manifest.json) |

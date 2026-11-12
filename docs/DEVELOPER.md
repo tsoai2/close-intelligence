@@ -16,8 +16,8 @@
 | `npm run migrate` | Applies migrations and exits. |
 | `npm run seed:demo` | Wipes and reseeds Demo only. Never touches Live. |
 | `npm run check` | Syntax check, strict type check of the calculation modules, source hygiene rules, client build. |
-| `npm test` | Unit and integration tests (`node:test`), 41 tests. Each file starts its own server on a temporary data folder. |
-| `npm run test:e2e` | 25 browser checks in headless Chrome via Playwright, including the seven user journeys. Uses a local mock for OpenAI and intercepts Outlook URLs; nothing leaves the machine. |
+| `npm test` | Unit and integration tests (`node:test`), 42 tests. Each file starts its own server on a temporary data folder. |
+| `npm run test:e2e` | 26 browser checks in headless Chrome via Playwright, including the seven user journeys. Uses a local mock for OpenAI and intercepts Outlook URLs; nothing leaves the machine. |
 | `node scripts/export-samples.mjs` | Regenerates `samples/workpapers/` and `docs/demo-truth-manifest.json`. |
 
 If the dev tools live outside `./node_modules`, set `CI_NODE_PATH` to that folder, and
@@ -53,7 +53,7 @@ If the dev tools live outside `./node_modules`, set `CI_NODE_PATH` to that folde
   calls the OpenAI Responses API over HTTPS with a strict JSON schema, then drops any
   citation that is not in that context and any proposed action not on the allow-list.
   With no key (or in Demo) the same question is answered by fixed rules and labelled.
-- **Charts** (`client/src/charts.jsx`, panels in `client/src/views/Deck.jsx`, series from `server/domains/dashboard.js`): plain SVG and HTML. A chart receives finished series from the server and draws exactly those points. Entry animation is CSS, triggered once by an IntersectionObserver; `prefers-reduced-motion` skips it. Each chart sits in a `Viz` frame that supplies the legend, tooltip and table twin. `tests/integration/dashboard.test.js` ties every series back to the overview, schedule and statements.
+- **Charts** (`client/src/charts.jsx`, panels in `client/src/views/Deck.jsx`, series from `server/domains/dashboard.js`): plain SVG and HTML. A chart receives finished series from the server and draws exactly those points. Entry animation is CSS, replayed by an IntersectionObserver each time the chart re-enters the screen; `prefers-reduced-motion` skips it. Each chart sits in a `Viz` frame that supplies the legend, tooltip and table twin. `tests/integration/dashboard.test.js` ties every series back to the overview, schedule and statements.
 - **Client.** React 19, hand-written CSS design system (`client/src/styles.css`), SVG
   graph and charts, no component or chart libraries. Routing is path + query string;
   drawers are URL-addressable (`?task=`, `?doc=`…).

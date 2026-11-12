@@ -36,7 +36,9 @@ test('Demo reset never touches Live; role preview never grants Live privileges',
   const after = (await live.me()).data; assert.equal(after.users.length, liveUsers); assert.equal(after.entities.length, 1); assert.equal(after.entities[0].code, 'L1'); assert.ok(fs.statSync(path.join(app.dir, 'live', 'app.db')).size >= before);
   await demo.post('/reset', { scenario: 'baseline' }); S.me = (await demo.me()).data;
   const adminPersona = await persona('admin'); assert.equal((await adminPersona.me()).data.user.role, 'admin'); const asLive = new Client(app.base, 'live'); asLive.cookie = adminPersona.cookie; assert.equal((await asLive.get('/users')).status, 404); assert.equal((await asLive.get('/audit')).status, 401);
-  assert.match((await adminPersona.put('/ai/key', { apiKey: 'sk-test-0123456789abcdefghij' })).data.message, /Live only/, 'Demo never stores or calls an OpenAI key');
+  process.env.OPENAI_BASE_URL = 'http://127.0.0.1:9/v1'; // nothing listens here, so the key cannot be verified
+  try { assert.ok((await adminPersona.put('/ai/key', { apiKey: 'sk-test-0123456789abcdefghij' })).status >= 500, 'a key that cannot be verified is refused'); } finally { delete process.env.OPENAI_BASE_URL; }
+  assert.equal((await adminPersona.get('/ai/settings')).data.status, 'sample_mode', 'Demo stores no key unless OpenAI accepts it'); assert.equal((await adminPersona.get('/ai/settings')).data.keyHint, null);
 });
 test('role-based authorization is enforced on the API, not only in the UI', async () => {
   const pid = S.me.periods[0].id; const tasks = (await demo.get(`/periods/${pid}/tasks`)).data; const sub = tasks.find(t => t.status === 'submitted'); const ready = tasks.find(t => t.status === 'ready' && t.preparer_id);

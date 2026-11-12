@@ -27,11 +27,26 @@ document in it is made up. You can click anything: nothing is sent, and **Reset 
    proposal. Note the covenant certificate: rarely opened, but protected because a
    control depends on it. "No views here" is never treated as "not needed".
 5. **Assistant** (the sparkle icon) — ask "What is holding the close?". In Demo the answer
-   is a clearly labelled sample built from the demo records by fixed rules, not live AI.
+   is a clearly labelled sample built from the demo records by fixed rules, not live AI,
+   unless you connect an OpenAI key in Demo (see below).
 
 Under your initials you can also preview other roles (reviewer, preparer, executive,
 auditor, outside contact) and switch scenario: On track, Upstream delay, Reviewer
 unavailable, Improved process.
+
+### Making the demo your own
+
+- **Company name:** Settings → Guided setup → Company and entities → type a name → Save
+  name. It appears in the header, reports and exports. The figures stay fictional and the
+  screen stays marked Demo.
+- **Live AI in Demo:** Settings → AI Connection → paste an OpenAI API key → Test and save →
+  choose a model. The assistant then sends the fictional demo records needed for each
+  question to OpenAI and shows the real answer, labelled "Live AI on fictional demo data".
+  Disconnect the key to go back to sample responses.
+- Both are kept when you press Reset demo or change scenario.
+
+An OpenAI API key comes from platform.openai.com and is billed separately from a ChatGPT
+subscription; a ChatGPT login is not an API key.
 
 ### How to read the labels
 
@@ -82,9 +97,9 @@ addressed to the product owner. You review and press Send in Outlook yourself; t
 only opens the draft. If Outlook does not open, use "Open in my email app" or
 "Copy email text".
 
-## 6. Turning on the assistant (optional, Live only)
+## 6. Turning on the assistant in Live (optional)
 
-An administrator pastes an OpenAI API key in **Settings → AI connection**, presses Test,
+In Live, an administrator pastes an OpenAI API key in **Settings → AI connection**, presses Test,
 and picks a model from the list the account actually has access to. The key is stored
 encrypted on the server and only ever shown masked. An OpenAI API account is billed
 separately from a ChatGPT subscription. Without a key, the assistant still answers from

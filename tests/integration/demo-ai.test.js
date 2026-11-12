@@ -100,3 +100,25 @@ test('Live works fully without AI; key handling, citations, injection, throttlin
   const off = (await live.del('/ai/key')).data; assert.equal(off.status, 'disconnected'); assert.equal(app.db.dbFor('live').get('SELECT key_cipher FROM ai_settings').key_cipher, null); assert.equal((await live.post('/ai/ask', { question: 'status' })).data.mode, 'unavailable');
   const s = (await live.get('/ai/settings')).data; assert.match(s.billing.text, /separately from any ChatGPT subscription/); assert.match(s.billing.text, /does not bring in your ChatGPT conversations/);
 });
+
+test('Demo calls OpenAI only after a key is deliberately connected there; key and company name stay in Demo and survive a reset', async () => {
+  const me = (await demo.me()).data; assert.equal(me.user.name, 'Taka Soai', 'default demo persona'); assert.equal((await demo.get('/ai/settings')).data.status, 'sample_mode');
+  const prep = new Client(app.base, 'demo'); await prep.get('/auth/status'); await prep.demo(me.users.find(u => u.role === 'preparer').id);
+  assert.equal((await prep.req('PUT', '/ai/key', { apiKey: 'sk-demo-good-key-1234567890abcd' })).status, 403, 'a preparer persona cannot manage the key'); assert.equal((await prep.req('PATCH', '/org', { name: 'Nope Inc' })).status, 403, 'a preparer persona cannot rename the company');
+  assert.equal((await demo.req('PUT', '/ai/key', { apiKey: 'sk-bad-demo-key-000000000000' })).status, 502); assert.equal((await demo.get('/ai/settings')).data.status, 'sample_mode', 'a rejected key is not stored');
+  const saved = await demo.ok('PUT', '/ai/key', { apiKey: 'sk-demo-good-key-1234567890abcd' }); assert.equal(saved.status, 'connected'); assert.equal(saved.keyHint, '••••abcd'); assert.ok(saved.models.includes('mock-text-1')); assert.ok(!JSON.stringify(saved).includes('sk-demo-good'), 'the key is never returned');
+  await demo.ok('PATCH', '/ai/settings', { model: 'mock-text-1' }); const n = seen.length;
+  const r = (await demo.post('/ai/ask', { question: 'What is blocking the close?', context: { periodId: S.pid } })).data; assert.equal(r.mode, 'live'); assert.equal(r.demoData, true); assert.ok(seen.slice(n).some(c => c.key === 'sk-demo-good-key-1234567890abcd' && c.url === '/v1/responses'), 'the Demo key was used for the call');
+  assert.ok(r.citations.length >= 1 && r.droppedCitations.length >= 1, 'invented citations are still removed in Demo');
+  assert.notEqual((await live.get('/ai/settings')).data.keyHint, '••••abcd', 'the Demo key is not visible in Live');
+  // rename the fictional company; only the name may change in Demo
+  await demo.ok('PATCH', '/org', { name: 'Client Preview Co', base_currency: 'EUR' }); let m2 = (await demo.me()).data; assert.equal(m2.org.name, 'Client Preview Co'); assert.equal(m2.org.baseCurrency, me.org.baseCurrency, 'currency cannot be changed in Demo');
+  assert.equal((await demo.req('PATCH', '/org', { name: '   ' })).status, 422);
+  // reset and scenario change keep both
+  await demo.ok('POST', '/reset', { scenario: 'on_track' }); m2 = (await demo.me()).data; assert.equal(m2.org.name, 'Client Preview Co'); const after = (await demo.get('/ai/settings')).data; assert.equal(after.status, 'connected'); assert.equal(after.keyHint, '••••abcd'); assert.equal(after.model, 'mock-text-1');
+  assert.equal((await demo.post('/ai/ask', { question: 'What is blocking the close?' })).data.mode, 'live');
+  assert.ok(!JSON.stringify(await demo.ok('GET', '/audit')).includes('sk-demo-good'), 'the key is not in the audit trail');
+  // disconnecting returns Demo to sample responses; a server-wide key is for Live only
+  await demo.ok('DELETE', '/ai/key'); process.env.OPENAI_API_KEY = 'sk-env-live-only-key-000000000'; const k = seen.length;
+  try { assert.equal((await demo.get('/ai/settings')).data.status, 'sample_mode'); assert.equal((await demo.post('/ai/ask', { question: 'What is blocking the close?' })).data.mode, 'sample'); assert.equal(seen.length, k, 'Demo never uses the server-wide key'); } finally { delete process.env.OPENAI_API_KEY; }
+});

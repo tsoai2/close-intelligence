@@ -5,7 +5,8 @@ No technical background needed. Allow about fifteen minutes.
 ## 1. Open the app
 
 Ask whoever set it up for the address (on your own computer it is
-<http://localhost:4600>). You land in **Demo**, marked by an amber stripe across the top.
+<http://localhost:4600>). You land in **Demo**: the Demo side of the switch at the top is highlighted and a demo
+clock shows beside it.
 
 Demo is a fictional company, Halcyon Ridge Distribution Co. Every name, balance and
 document in it is made up. You can click anything: nothing is sent, and **Reset demo**
@@ -63,7 +64,7 @@ shown separately. A finished checklist does not prove the numbers are right.
 
 ## 3. Start your own close in Live
 
-1. Flip the switch at the top to **Live**. The stripe disappears. Live starts empty and
+1. Flip the switch at the top to **Live**. Live starts empty and
    never contains demo records.
 2. Create the first account. That person becomes the administrator. Passwords need at
    least 10 characters with a letter and a number.

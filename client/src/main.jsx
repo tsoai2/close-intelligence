@@ -121,7 +121,7 @@ function Shell() {
   return <div className={`app env-${env}`}><a className="skip" href="#main">Skip to content</a><Header onMenu={() => setMenu(m => !m)} /><Nav open={menu} onClose={() => setMenu(false)} />
     <main id="main" ref={main} className="main" tabIndex={-1}><div key={route.section} className="page"><View /></div></main>
     <Assistant /><TaskDrawer /><DocDrawer /><Feedback /><ConflictDialog /><Tour /><Toasts />
-    {env === 'demo' && <div className="envstripe" aria-hidden="true" />}</div>;
+    </div>;
 }
 try { const t = localStorage.getItem('ci-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch { /* preference only */ }
 const first = location.pathname.split('/')[1]; const startEnv = first === 'live' ? 'live' : 'demo'; if (!['demo', 'live'].includes(first)) history.replaceState(null, '', '/demo/today');

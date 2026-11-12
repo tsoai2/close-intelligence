@@ -1,0 +1,9 @@
+entity,account,account_name,currency,debit,credit
+US01,1000,Cash - operating,USD,125000.00,0.00
+US01,1100,Accounts receivable,USD,310500.25,0.00
+US01,2000,Accounts payable,USD,0.00,198250.75
+US01,4000,Product revenue,USD,0.00,412000.00
+US01,5000,Cost of goods sold,USD,268750.50,0.00
+US01,5000,Cost of goods sold,USD,10.00,0.00
+XX99,1000,Cash,USD,5.00,0.00
+US01,6000,Salaries and wages,EUR,100.00,0.00

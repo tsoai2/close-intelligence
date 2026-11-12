@@ -1,0 +1,7 @@
+key,name,process,entity,offset_bd,duration_hours,review_hours,owner_email,reviewer_email,risk,evidence,depends_on,description
+CL-01,Bank reconciliation,Cash,US01,1,2,0.5,,,high,Bank statement; Reconciliation workpaper,,Reconcile the operating account to the bank
+CL-02,AR subledger to GL reconciliation,Receivables,US01,2,2,1,,,high,Aged receivables report,,Tie the AR aging to the general ledger
+CL-03,Accrued liabilities review,Accruals,US01,2,3,1,,,medium,Accrual calculation,,Review uninvoiced receipts and recurring accruals
+CL-04,Final trial balance,Financial reporting,US01,4,1,0.5,,,high,Trial balance extract,CL-01;CL-02;CL-03,Extract the final trial balance
+CL-05,Flux analysis,Financial reporting,US01,5,3,1,,,medium,Variance analysis,CL-04,Explain movements over threshold
+CL-06,Management review package,Management review,,6,2,1,,,high,Review package,CL-05,Assemble the package for the CFO

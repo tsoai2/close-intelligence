@@ -1,0 +1,313 @@
+{
+  "note": "Issues deliberately planted in the fictional demo data, and what the rules engine reported for the default scenario. Everything here is synthetic.",
+  "company": "Halcyon Ridge Distribution Co. (fictional demo company)",
+  "demoClock": "2026-11-05T10:00",
+  "scenarios": {
+    "baseline": {
+      "label": "Upstream delay",
+      "description": "The third-party inventory report is late, reviews are piling up on one reviewer and the projected close is past target."
+    },
+    "on_track": {
+      "label": "On track",
+      "description": "The inventory report arrived on time and reviews are keeping pace."
+    },
+    "reviewer_unavailable": {
+      "label": "Reviewer unavailable",
+      "description": "Upstream delay, and the main reviewer is out for two days."
+    },
+    "improved": {
+      "label": "Improved process",
+      "description": "Inventory arrives on time, reviews are spread across reviewers and the duplicate extract is retired."
+    }
+  },
+  "planted": [
+    {
+      "id": "delayed_inventory_report",
+      "rule": "late_input",
+      "match": "inventory report",
+      "scenarios": [
+        "baseline",
+        "reviewer_unavailable"
+      ],
+      "evidence": "Request to Cascade Logistics was late in Jul, Aug and Sep and is outstanding in Oct."
+    },
+    {
+      "id": "reviewer_overload",
+      "rule": "reviewer_overload",
+      "match": "Priya Raman",
+      "scenarios": [
+        "baseline",
+        "reviewer_unavailable"
+      ],
+      "evidence": "Review queue estimate exceeds recorded daily capacity."
+    },
+    {
+      "id": "intercompany_mismatch",
+      "rule": "ic_mismatch",
+      "match": "HRD-US / HRD-CA",
+      "evidence": "US receivable 482,300.00 vs CA payable translating to 469,850.00 (difference 12,450.00)."
+    },
+    {
+      "id": "duplicate_extract",
+      "rule": "duplicate_document",
+      "match": "Sales by Customer",
+      "scenarios": [
+        "baseline",
+        "on_track",
+        "reviewer_unavailable"
+      ],
+      "evidence": "Two documents with identical checksums, pulled by two people."
+    },
+    {
+      "id": "possibly_unused_report",
+      "rule": "no_usage_observed",
+      "match": "Legacy Margin by SKU",
+      "evidence": "No in-app usage in 90 days and no consumer links."
+    },
+    {
+      "id": "required_control_document",
+      "rule": "protected_document",
+      "match": "Covenant Compliance Certificate",
+      "evidence": "No in-app usage but linked to a control and a lender retention requirement. Must NOT be a retirement candidate."
+    },
+    {
+      "id": "missing_owner_task",
+      "rule": "missing_owner",
+      "match": "LEASE-01",
+      "evidence": "HRD-MX lease schedule task has no accountable owner."
+    },
+    {
+      "id": "missing_owner_document",
+      "rule": "missing_owner",
+      "match": "MX Freight Accrual",
+      "evidence": "Document with no owner."
+    },
+    {
+      "id": "stale_evidence",
+      "rule": "stale_evidence",
+      "match": "PREP-01",
+      "evidence": "September workpaper attached to an October task."
+    },
+    {
+      "id": "late_source_change",
+      "rule": "review_invalidated",
+      "match": "Accounts receivable — HRD-US",
+      "evidence": "Trial balance re-extracted after the AR reconciliation was approved."
+    },
+    {
+      "id": "recurring_rework",
+      "rule": "recurring_rework",
+      "match": "REV-02",
+      "evidence": "Changes requested on the rebate accrual in every period."
+    },
+    {
+      "id": "knowledge_concentration",
+      "rule": "knowledge_concentration",
+      "match": "Aisha Rahman",
+      "evidence": "High-risk inventory tasks with one preparer and no backup."
+    },
+    {
+      "id": "stale_procedure",
+      "rule": "stale_procedure",
+      "match": "Inventory Reconciliation Procedure",
+      "evidence": "Procedure last issued in 2024."
+    },
+    {
+      "id": "overlapping_extract_tasks",
+      "rule": "overlapping_tasks",
+      "match": "RPT-01 and RPT-02",
+      "scenarios": [
+        "baseline",
+        "on_track",
+        "reviewer_unavailable"
+      ],
+      "evidence": "Two extract tasks with nearly the same name."
+    }
+  ],
+  "defaultScenarioResult": {
+    "scenario": "baseline",
+    "expected": 14,
+    "detected": 14,
+    "missed": [],
+    "results": [
+      {
+        "id": "delayed_inventory_report",
+        "rule": "late_input",
+        "match": "inventory report",
+        "scenarios": [
+          "baseline",
+          "reviewer_unavailable"
+        ],
+        "evidence": "Request to Cascade Logistics was late in Jul, Aug and Sep and is outstanding in Oct.",
+        "detected": true,
+        "findingId": 1,
+        "findingTitle": "Recurring late input: Period-end inventory report from Cascade Logistics (fictional 3PL)"
+      },
+      {
+        "id": "reviewer_overload",
+        "rule": "reviewer_overload",
+        "match": "Priya Raman",
+        "scenarios": [
+          "baseline",
+          "reviewer_unavailable"
+        ],
+        "evidence": "Review queue estimate exceeds recorded daily capacity.",
+        "detected": true,
+        "findingId": 3,
+        "findingTitle": "Review queue exceeds daily capacity: Priya Raman"
+      },
+      {
+        "id": "intercompany_mismatch",
+        "rule": "ic_mismatch",
+        "match": "HRD-US / HRD-CA",
+        "evidence": "US receivable 482,300.00 vs CA payable translating to 469,850.00 (difference 12,450.00).",
+        "detected": true,
+        "findingId": 4,
+        "findingTitle": "Intercompany difference: HRD-US / HRD-CA"
+      },
+      {
+        "id": "duplicate_extract",
+        "rule": "duplicate_document",
+        "match": "Sales by Customer",
+        "scenarios": [
+          "baseline",
+          "on_track",
+          "reviewer_unavailable"
+        ],
+        "evidence": "Two documents with identical checksums, pulled by two people.",
+        "detected": true,
+        "findingId": 5,
+        "findingTitle": "Identical files kept as separate documents: Sales by Customer — Oct 2026 (flash reporting) / Sales by Customer extract for rebate accruals — Oct 2026"
+      },
+      {
+        "id": "possibly_unused_report",
+        "rule": "no_usage_observed",
+        "match": "Legacy Margin by SKU",
+        "evidence": "No in-app usage in 90 days and no consumer links.",
+        "detected": true,
+        "findingId": 7,
+        "findingTitle": "No usage observed: Legacy Margin by SKU Report — Oct 2026"
+      },
+      {
+        "id": "required_control_document",
+        "rule": "protected_document",
+        "match": "Covenant Compliance Certificate",
+        "evidence": "No in-app usage but linked to a control and a lender retention requirement. Must NOT be a retirement candidate.",
+        "detected": true,
+        "findingId": 8,
+        "findingTitle": "Rarely opened but required: Quarterly Covenant Compliance Certificate — Q3 2026"
+      },
+      {
+        "id": "missing_owner_task",
+        "rule": "missing_owner",
+        "match": "LEASE-01",
+        "evidence": "HRD-MX lease schedule task has no accountable owner.",
+        "detected": true,
+        "findingId": 13,
+        "findingTitle": "Task has no accountable owner: LEASE-01 Lease schedule and right-of-use asset update (HRD-MX)"
+      },
+      {
+        "id": "missing_owner_document",
+        "rule": "missing_owner",
+        "match": "MX Freight Accrual",
+        "evidence": "Document with no owner.",
+        "detected": true,
+        "findingId": 11,
+        "findingTitle": "Document has no owner: MX Freight Accrual Workpaper — Oct 2026"
+      },
+      {
+        "id": "stale_evidence",
+        "rule": "stale_evidence",
+        "match": "PREP-01",
+        "evidence": "September workpaper attached to an October task.",
+        "detected": true,
+        "findingId": 15,
+        "findingTitle": "Evidence is from a different period: PREP-01 Prepaid expenses amortization (HRD-CA)"
+      },
+      {
+        "id": "late_source_change",
+        "rule": "review_invalidated",
+        "match": "Accounts receivable — HRD-US",
+        "evidence": "Trial balance re-extracted after the AR reconciliation was approved.",
+        "detected": true,
+        "findingId": 16,
+        "findingTitle": "Approval no longer matches the data: Accounts receivable — HRD-US"
+      },
+      {
+        "id": "recurring_rework",
+        "rule": "recurring_rework",
+        "match": "REV-02",
+        "evidence": "Changes requested on the rebate accrual in every period.",
+        "detected": true,
+        "findingId": 17,
+        "findingTitle": "Repeated rework: REV-02 Retailer rebates and allowances accrual (HRD-US)"
+      },
+      {
+        "id": "knowledge_concentration",
+        "rule": "knowledge_concentration",
+        "match": "Aisha Rahman",
+        "evidence": "High-risk inventory tasks with one preparer and no backup.",
+        "detected": true,
+        "findingId": 14,
+        "findingTitle": "No backup for 10 high-risk tasks prepared by Aisha Rahman"
+      },
+      {
+        "id": "stale_procedure",
+        "rule": "stale_procedure",
+        "match": "Inventory Reconciliation Procedure",
+        "evidence": "Procedure last issued in 2024.",
+        "detected": true,
+        "findingId": 9,
+        "findingTitle": "Procedure not updated in over a year: Inventory Reconciliation Procedure"
+      },
+      {
+        "id": "overlapping_extract_tasks",
+        "rule": "overlapping_tasks",
+        "match": "RPT-01 and RPT-02",
+        "scenarios": [
+          "baseline",
+          "on_track",
+          "reviewer_unavailable"
+        ],
+        "evidence": "Two extract tasks with nearly the same name.",
+        "detected": true,
+        "findingId": 18,
+        "findingTitle": "Possibly overlapping tasks: RPT-01 and RPT-02 (HRD-US)"
+      }
+    ],
+    "additionalCandidates": [
+      {
+        "id": 10,
+        "rule": "no_usage_observed",
+        "title": "No usage observed: MX Freight Accrual Workpaper — Oct 2026"
+      },
+      {
+        "id": 6,
+        "rule": "similar_documents",
+        "title": "Very similar documents: AR aging — HRD-US Oct 2026 / AR aging by customer (collections view) — HRD-US Oct 2026"
+      },
+      {
+        "id": 19,
+        "rule": "unlinked_tasks",
+        "title": "1 open task(s) have no dependencies in either direction"
+      },
+      {
+        "id": 12,
+        "rule": "protected_document",
+        "title": "Rarely opened but required: Retailer program rate schedule 2026"
+      },
+      {
+        "id": 20,
+        "rule": "long_chain",
+        "title": "Long dependency chains: 1 task(s) sit behind 9 or more sequential steps"
+      },
+      {
+        "id": 2,
+        "rule": "late_input",
+        "title": "Late input: Customs broker duties report from Aduanas Norte (fictional broker)"
+      }
+    ],
+    "protectedDocumentWronglyFlagged": false,
+    "note": "Additional candidates are findings the rules produced that were not deliberately planted. Some are genuine consequences of the planted data; others are false positives for a person to dismiss."
+  }
+}

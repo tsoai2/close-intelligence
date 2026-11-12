@@ -1,0 +1,25 @@
+{
+  "name": "close-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CLOSE INTELLIGENCE - plan, execute, review, document, analyze and improve the month-end close",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning server/index.js",
+    "build": "node client/build.mjs",
+    "dev": "node client/build.mjs && node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "migrate": "node --disable-warning=ExperimentalWarning server/index.js --migrate-only",
+    "seed:demo": "node --disable-warning=ExperimentalWarning server/index.js --reset-demo",
+    "check": "node scripts/check.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 \"tests/unit/*.test.js\" \"tests/integration/*.test.js\"",
+    "test:e2e": "node --disable-warning=ExperimentalWarning tests/e2e/run.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright": "^1.50.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.6.0"
+  }
+}

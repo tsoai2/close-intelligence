@@ -1,0 +1,2 @@
+{ "name": "CLOSE INTELLIGENCE", "short_name": "Close", "start_url": "/demo/today", "display": "standalone", "background_color": "#070c18", "theme_color": "#070c18",
+  "description": "Month-end close planning, execution, review and improvement.", "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }] }

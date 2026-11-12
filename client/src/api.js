@@ -95,6 +95,8 @@ export function switchEnv(env) {
 }
 export async function signOut() { try { await request('POST', '/auth/logout', {}); } catch { /* ignore */ } net.epoch++; cache.clear(); net.es?.close(); net.csrf = null; try { sessionStorage.clear(); } catch { /* ignore */ } setApp({ me: null }); boot(net.env); }
 /** Harmless per-screen preferences (filters, theme). Never financial data. */
+/** Sets a stored view preference from outside the component that owns it (for example before navigating to it). */
+export function setPref(key, value) { try { sessionStorage.setItem(`ci:${net.env}:${key}`, JSON.stringify(value)); } catch { /* ignore */ } }
 export function usePref(key, initial) {
   const k = `ci:${net.env}:${key}`; const [v, setV] = useState(() => { try { const s = sessionStorage.getItem(k); return s ? JSON.parse(s) : initial; } catch { return initial; } });
   const ref = useRef(v); ref.current = v; const set = useCallback(n => { const next = typeof n === 'function' ? n(ref.current) : n; setV(next); try { sessionStorage.setItem(k, JSON.stringify(next)); } catch { /* ignore */ } }, [k]);

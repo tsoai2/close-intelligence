@@ -104,7 +104,7 @@ export function overview(db, orgId, period, now) {
   const highRisk = open.filter(t => t.risk === 'high'); const inReview = tasks.filter(t => t.status === 'submitted'); const rereview = tasks.filter(t => t.needs_rereview);
   const evCount = Object.fromEntries(db.all('SELECT task_id, COUNT(*) n FROM evidence WHERE org_id=? AND period_id=? AND removed=0 GROUP BY task_id', orgId, period.id).map(r => [r.task_id, r.n]));
   const missingEvidence = tasks.filter(t => PREPARED.has(t.status) && J(t.evidence_req, []).length > (evCount[t.id] || 0));
-  const dueByNow = tasks.filter(t => t.due_at && t.due_at <= now); const dueDone = dueByNow.filter(t => t.status === 'approved');
+  const dueByNow = tasks.filter(t => t.due_at && t.due_at <= now); const dueDone = dueByNow.filter(t => t.status === 'approved' && !t.needs_rereview);
   const w = settings.completion_weights; const wt = t => w[t.risk] ?? 1; const wsum = l => l.reduce((a, t) => a + wt(t), 0);
   const { result: sched } = schedulePeriod(db, orgId, period, now);
   const recs = db.all('SELECT * FROM reconciliations WHERE org_id=? AND period_id=?', orgId, period.id);
@@ -145,7 +145,7 @@ export function overview(db, orgId, period, now) {
       note: 'Weighted completion counts each task by its risk weight so many low-risk items cannot hide an unfinished high-risk one.',
     },
     timeliness: {
-      dueByNow: { done: dueDone.length, total: dueByNow.length, records: dueByNow.filter(t => t.status !== 'approved').map(t => ({ type: 'task', id: t.id })) },
+      dueByNow: { done: dueDone.length, total: dueByNow.length, records: dueByNow.filter(t => t.status !== 'approved' || t.needs_rereview).map(t => ({ type: 'task', id: t.id })) },
       planned: period.target_close, projected: sched.error ? null : sched.projected, projectedResource: sched.resource?.projected || null, actual: period.actual_close_at,
       definitions: { planned: 'Target close date set for the period.', projected: 'Latest projected approval among open tasks from the dependency schedule (an estimate).', actual: 'Time the period was locked.' },
       coverage: sched.coverage, warnings: sched.warnings, assumptions: sched.assumptions,

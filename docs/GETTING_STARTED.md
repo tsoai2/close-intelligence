@@ -14,9 +14,11 @@ document in it is made up. You can click anything: nothing is sent, and **Reset 
 
 ## 2. Five things to try in Demo
 
-1. **Today** — the opening screen. "Close at a glance" shows the projected finish date and
-   the one task holding it. Click the projected date or any number to see how it was
-   calculated and the records behind it.
+1. **Close → Overview** — opens with one sentence on where the close stands and what is
+   holding it, then the gauge and trajectory, a short "Needs attention" list, and progress
+   by stage and process. Click any chart mark or list line to see the tasks or the
+   calculation behind it. The small "i" on each chart holds its source, notes and a table
+   of the same numbers.
 2. **Process Map** — the constellation of tasks. The amber path is the critical path: the
    chain that sets the finish date. Click a node to see who owns it, what it is waiting
    on and what it would delay. **Table** shows the same thing as a list. **What-if** lets
@@ -34,6 +36,12 @@ document in it is made up. You can click anything: nothing is sent, and **Reset 
 Under your initials you can also preview other roles (reviewer, preparer, executive,
 auditor, outside contact) and switch scenario: On track, Upstream delay, Reviewer
 unavailable, Improved process.
+
+### Presenting it
+
+Under your initials choose **Presentation mode**: larger type, a slimmer side bar, and
+charts that replay their animation each time they scroll into view. Day to day, charts
+animate once per visit. The same menu holds the light/dark switch and Send feedback.
 
 ### Making the demo your own
 
@@ -73,7 +81,7 @@ shown separately. A finished checklist does not prove the numbers are right.
    start from the standard template, the optional distributor template, or **import your
    own checklist** from a spreadsheet (a template file is offered in the import screen).
 4. Open a period. Tasks, due dates and dependencies are created from the template.
-5. **Close → Financials → Import trial balance.** The wizard shows what it understood,
+5. **Accounting → Financials → Import trial balance.** The wizard shows what it understood,
    flags anything that does not balance, and lets you undo an import.
 6. **Settings → Team and roles → Add person.** Choose a role and an initial password and
    pass it on securely. The app does not send email. Each person can change their
@@ -93,7 +101,7 @@ in Settings → Policies, in which case each such approval is recorded as an exc
 
 ## 5. Feedback
 
-The **Feedback** button (bottom right) opens a short form and then a draft in Outlook
+**Send feedback**, in the menu under your initials, opens a short form and then a draft in Outlook
 addressed to the product owner. You review and press Send in Outlook yourself; the app
 only opens the draft. If Outlook does not open, use "Open in my email app" or
 "Copy email text".

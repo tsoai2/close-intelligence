@@ -25,12 +25,13 @@ export function useSize(ref) {
   useEffect(() => { const el = ref.current; if (!el) return; setW(el.clientWidth); if (typeof ResizeObserver !== 'function') return; const ro = new ResizeObserver(e => setW(Math.round(e[0].contentRect.width))); ro.observe(el); return () => ro.disconnect(); }, [ref]);
   return w;
 }
-/** True while the element is on screen, false again once it has fully left, so its entry animation
- *  plays each time it comes into view. Reduced motion: always true, so nothing animates. */
+/** True once the element has come on screen, so its entry animation plays once per visit to the page.
+ *  In presentation mode it turns false again when the element has fully left, so the animation replays
+ *  each time it comes back into view. Reduced motion: always true, so nothing animates. */
 export function useReveal(ref) {
   const [on, setOn] = useState(reduced);
   useEffect(() => { if (reduced()) { setOn(true); return; } const el = ref.current; if (!el || typeof IntersectionObserver !== 'function') { setOn(true); return; }
-    const io = new IntersectionObserver(es => { for (const e of es) { if (e.isIntersecting && (e.intersectionRatio >= 0.12 || e.intersectionRect.height >= 120)) setOn(true); else if (!e.isIntersecting) setOn(false); } }, { threshold: [0, 0.05, 0.12, 0.3] });
+    const io = new IntersectionObserver(es => { for (const e of es) { if (e.isIntersecting && (e.intersectionRatio >= 0.12 || e.intersectionRect.height >= 120)) setOn(true); else if (!e.isIntersecting && document.documentElement.classList.contains('present')) setOn(false); } }, { threshold: [0, 0.05, 0.12, 0.3] });
     io.observe(el); return () => io.disconnect(); }, [ref]);
   return on;
 }
@@ -46,20 +47,24 @@ const useTip = () => useContext(TipCtx);
 /** Tooltip body: value leads, label follows, series keyed by a short stroke. */
 export function TipRows({ title, rows }) { return <><div className="tip-title">{title}</div>{rows.filter(Boolean).map(r => <div key={r.label} className="tip-row">{r.color && <i className={`vkey vkey-${r.shape || 'line'}`} style={{ '--k': r.color }} />}<strong>{r.value}</strong><span>{r.label}</span></div>)}</>; }
 
-/** Chart frame: title, legend, chart/table switch, note, and the shared tooltip. */
+/** Chart frame: title, legend and the shared tooltip. One "About" button holds the source label,
+ *  the footnote and the switch to a table of the same numbers, so the chart itself stays clean. */
 export function Viz({ title, sub, badge, legend, table, note, className = '', bare, children }) {
-  const ref = useRef(null); const on = useReveal(ref); const [asTable, setAsTable] = useState(false); const [tip, setTip] = useState(null);
+  const ref = useRef(null); const on = useReveal(ref); const [asTable, setAsTable] = useState(false); const [tip, setTip] = useState(null); const [about, setAbout] = useState(false);
   const api = useMemo(() => ({
     show(el, content, pt) { const host = ref.current?.getBoundingClientRect(); if (!host) return; const r = el.getBoundingClientRect(); setTip({ x: (pt ? pt.x : r.left + r.width / 2) - host.left, y: (pt ? pt.y : r.top) - host.top, w: host.width, content }); },
     hide() { setTip(null); },
   }), []);
+  useEffect(() => { if (!about) return; const k = e => { if (e.key === 'Escape') setAbout(false); }; const c = e => { if (!ref.current?.querySelector('.viz-about')?.contains(e.target)) setAbout(false); }; document.addEventListener('keydown', k); document.addEventListener('mousedown', c); return () => { document.removeEventListener('keydown', k); document.removeEventListener('mousedown', c); }; }, [about]);
+  const name = typeof title === 'string' ? title : 'chart';
   return <figure ref={ref} className={`viz${bare ? '' : ' hud'}${on ? ' is-on' : ''} ${className}`}>
-    <header className="viz-head"><div className="grow"><h3>{title} {badge}</h3>{sub && <p className="muted small">{sub}</p>}</div>
-      {table && <button type="button" className="viz-toggle" aria-pressed={asTable} onClick={() => { setAsTable(!asTable); setTip(null); }}>{asTable ? 'Show chart' : 'Show table'}</button>}</header>
+    <header className="viz-head"><div className="grow"><h3>{title}</h3>{sub && <p className="muted small">{sub}</p>}</div>
+      {asTable && <button type="button" className="viz-toggle" onClick={() => setAsTable(false)}>Show chart</button>}
+      {(badge || note || table) && <div className="viz-about"><button type="button" className="viz-info" aria-label={`About this chart: ${name}`} aria-expanded={about} onClick={() => setAbout(!about)}>i</button>
+        {about && <div className="viz-pop" role="group" aria-label={`About: ${name}`}>{badge && <div className="viz-pop-src">Source {badge}</div>}{note && <p className="small">{note}</p>}{table && <button type="button" className="viz-toggle" onClick={() => { setAsTable(!asTable); setTip(null); setAbout(false); }}>{asTable ? 'Show chart' : 'Show table'}</button>}</div>}</div>}</header>
     {legend && !asTable && <ul className="viz-legend" aria-label="Legend">{legend.map(l => <li key={l.label}><i className={`vkey vkey-${l.shape || 'rect'}`} style={{ '--k': l.color }} />{l.label}</li>)}</ul>}
-    {asTable ? <div className="tablewrap viz-table"><table className="table"><caption className="sr-only">{title}</caption><thead><tr>{table.head.map((h, i) => <th key={h} className={i ? 'num' : ''}>{h}</th>)}</tr></thead><tbody>{table.rows.map((r, i) => <tr key={i}>{r.map((c, j) => (j ? <td key={j} className="num">{c}</td> : <th key={j} scope="row">{c}</th>))}</tr>)}</tbody></table></div>
+    {asTable ? <div className="tablewrap viz-table"><table className="table"><caption className="sr-only">{name}</caption><thead><tr>{table.head.map((h, i) => <th key={h} className={i ? 'num' : ''}>{h}</th>)}</tr></thead><tbody>{table.rows.map((r, i) => <tr key={i}>{r.map((c, j) => (j ? <td key={j} className="num">{c}</td> : <th key={j} scope="row">{c}</th>))}</tr>)}</tbody></table></div>
       : <TipCtx.Provider value={api}>{typeof children === 'function' ? children(on) : children}</TipCtx.Provider>}
-    {note && <figcaption className="viz-note muted tiny">{note}</figcaption>}
     {tip && !asTable && <div className="viz-tip" role="status" style={{ left: Math.max(96, Math.min(tip.w - 96, tip.x)), top: Math.max(8, tip.y) }}>{tip.content}</div>}
   </figure>;
 }
@@ -119,22 +124,22 @@ export function Trajectory({ burn, height = 270, on = true }) {
 }
 
 /** One whole split into ordered stages. Counts print inside a block only when they fit. */
-export function Pipeline({ stages, on = true }) {
+export function Pipeline({ stages, on = true, onSelect }) {
   const ref = useRef(null); const w = useSize(ref) || 600; const tip = useTip(); const total = stages.reduce((a, s) => a + s.count, 0);
   if (!total) return <p className="muted">No tasks in this period yet.</p>;
-  return <div ref={ref} className="pipe" role="list" aria-label="Tasks by stage">{stages.filter(s => s.count > 0).map(s => { const share = s.count / total; const fits = share * w >= 34; const text = `${s.label}: ${s.count} of ${total} (${Math.round(share * 100)}%)`;
-    return <div key={s.key} role="listitem" tabIndex={0} className={`pipe-seg pipe-${s.key}`} style={{ flexGrow: s.count }} aria-label={text} onPointerEnter={e => tip.show(e.currentTarget, <TipRows title={s.label} rows={[{ label: 'tasks', value: s.count }, { label: 'of all tasks', value: Math.round(share * 100) + '%' }]} />)} onPointerLeave={tip.hide} onFocus={e => tip.show(e.currentTarget, <TipRows title={s.label} rows={[{ label: 'tasks', value: s.count }, { label: 'of all tasks', value: Math.round(share * 100) + '%' }]} />)} onBlur={tip.hide}>{fits ? s.count : ''}</div>; })}</div>;
+  return <div ref={ref} className="pipe" role="list" aria-label="Tasks by stage">{stages.filter(s => s.count > 0).map(s => { const share = s.count / total; /* flex share set on the list item */ const fits = share * w >= 34; const text = `${s.label}: ${s.count} of ${total} (${Math.round(share * 100)}%)`;
+    return <div key={s.key} role="listitem" className="pipe-item" style={{ flexGrow: s.count }}><button type="button" className={`pipe-seg pipe-${s.key}`} aria-label={onSelect ? `${text}. Show these tasks.` : text} onClick={() => onSelect?.(s)} onPointerEnter={e => tip.show(e.currentTarget, <TipRows title={s.label} rows={[{ label: 'tasks', value: s.count }, { label: 'of all tasks', value: Math.round(share * 100) + '%' }]} />)} onPointerLeave={tip.hide} onFocus={e => tip.show(e.currentTarget, <TipRows title={s.label} rows={[{ label: 'tasks', value: s.count }, { label: 'of all tasks', value: Math.round(share * 100) + '%' }]} />)} onBlur={tip.hide}>{fits ? s.count : ''}</button></div>; })}</div>;
 }
 
 /** Ranked horizontal bars, optionally stacked, with an optional per-row reference tick. */
-export function HStack({ rows, series, format = v => v, markerLabel, max }) {
+export function HStack({ rows, series, format = v => v, markerLabel, max, className = '' }) {
   const tip = useTip(); const top = max ?? Math.max(1, ...rows.map(r => Math.max(r.marker || 0, r.segments.reduce((a, s) => a + (s.value || 0), 0))));
   const sOf = k => series.find(s => s.key === k);
-  return <div className="hs">{rows.map((r, i) => { const sum = r.segments.reduce((a, s) => a + (s.value || 0), 0);
+  return <div className={`hs ${className}`}>{rows.map((r, i) => { const sum = r.segments.reduce((a, s) => a + (s.value || 0), 0); const scale = r.max ?? top; const act = r.onSelect ? { role: 'button', onClick: r.onSelect, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); r.onSelect(); } } } : {};
     const body = <TipRows title={r.label} rows={[...r.segments.map(s => ({ label: sOf(s.key).label.toLowerCase(), value: format(s.value || 0), color: sOf(s.key).color, shape: 'rect' })), r.marker != null && { label: markerLabel, value: format(r.marker) }, ...(r.extra || [])]} />;
-    return <div key={r.label} className="hs-row" style={{ '--i': i }} tabIndex={0} aria-label={`${r.label}: ${r.segments.map(s => `${sOf(s.key).label} ${format(s.value || 0)}`).join(', ')}${r.marker != null ? `, ${markerLabel} ${format(r.marker)}` : ''}`} onPointerEnter={e => tip.show(e.currentTarget.querySelector('.hs-track'), body)} onPointerLeave={tip.hide} onFocus={e => tip.show(e.currentTarget.querySelector('.hs-track'), body)} onBlur={tip.hide}>
+    return <div key={r.label} className={`hs-row${r.onSelect ? ' hs-click' : ''}`} style={{ '--i': i }} tabIndex={0} {...act} aria-label={`${r.label}: ${r.segments.map(s => `${sOf(s.key).label} ${format(s.value || 0)}`).join(', ')}${r.marker != null ? `, ${markerLabel} ${format(r.marker)}` : ''}${r.aria ? `, ${r.aria}` : ''}${r.onSelect ? '. Show these tasks.' : ''}`} onPointerEnter={e => tip.show(e.currentTarget.querySelector('.hs-track'), body)} onPointerLeave={tip.hide} onFocus={e => tip.show(e.currentTarget.querySelector('.hs-track'), body)} onBlur={tip.hide}>
       <div className="hs-label"><span className="clamp1">{r.label}</span>{r.sub && <span className="muted tiny clamp1">{r.sub}</span>}</div>
-      <div className="hs-track"><div className="hs-fill" style={{ width: (sum / top) * 100 + '%' }}>{r.segments.filter(s => s.value > 0).map(s => <span key={s.key} className="hs-seg" style={{ flexGrow: s.value, background: sOf(s.key).color }} />)}</div>{r.marker != null && <i className="hs-mark" style={{ left: Math.min(100, (r.marker / top) * 100) + '%' }} />}</div>
+      <div className="hs-track"><div className="hs-fill" style={{ width: (sum / scale) * 100 + '%' }}>{r.segments.filter(s => s.value > 0).map(s => <span key={s.key} className="hs-seg" style={{ flexGrow: s.value, background: sOf(s.key).color }} />)}</div>{r.marker != null && <i className="hs-mark" style={{ left: Math.min(100, (r.marker / scale) * 100) + '%' }} />}</div>
       <div className="hs-val small">{r.value}</div></div>; })}</div>;
 }
 

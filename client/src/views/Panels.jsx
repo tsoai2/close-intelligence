@@ -33,13 +33,13 @@ export function Assistant() {
 }
 
 // ---------------- Feedback (Outlook draft; never claims the email was sent) ----------------
-export function Feedback() {
+export function Feedback({ button }) {
   const { params, section } = useRoute(); const { me, env } = useApp(); const open = !!params.feedback; const [f, setF] = useState({ type: 'Suggestion', message: '', contact: '', includeContext: true }); const [state, setState] = useState(null);
   const variant = me?.org?.settings?.outlook_variant || 'm365'; const [v, setV] = useState(variant); useEffect(() => setV(variant), [variant]);
   const mail = buildFeedback({ ...f, screen: SCREEN_NAMES[section] || 'Sign-in', env, version: me?.version || '0.1.0', browser: browserLabel(navigator.userAgent) }); const url = outlookUrl(v, mail); const long = url.length > URL_SOFT_LIMIT; const close = () => { setParams({ feedback: null }); setState(null); };
   const openOutlook = () => { const w = window.open(url, '_blank'); if (w) { try { w.opener = null; } catch { /* cross-origin */ } setState('opened'); } else setState('blocked'); };
   const copy = async what => { try { await navigator.clipboard.writeText(what === 'address' ? FEEDBACK_TO : emailText(mail)); setState('copied-' + what); } catch { setState('copyfail'); } };
-  return <><button type="button" className="feedback-btn" onClick={() => setParams({ feedback: 1 })} aria-label="Send feedback"><Icon name="message" size={18} /><span>Feedback</span></button>
+  return <>{button && <button type="button" className="feedback-btn" onClick={() => setParams({ feedback: 1 })} aria-label="Send feedback"><Icon name="message" size={18} /><span>Feedback</span></button>}
     <Modal open={open} onClose={close} wide title="Send feedback" footer={<><Button onClick={close}>Close</Button><Button icon="copy" onClick={() => copy('text')}>Copy email text</Button><a className="btn" href={mailtoUrl(mail)} onClick={() => setState('mailto')} data-testid="mailto">Open desktop email app</a><Button kind="primary" icon="external" onClick={openOutlook} disabled={!f.message.trim()}>Open Outlook</Button></>}>
       <div className="grid2"><div className="stack"><div className="segctl" role="radiogroup" aria-label="Feedback type">{['Bug', 'Suggestion', 'Question'].map(t => <button key={t} type="button" role="radio" aria-checked={f.type === t} className={f.type === t ? 'active' : ''} onClick={() => setF({ ...f, type: t })}>{t}</button>)}</div>
         <Field label="Message">{id => <textarea id={id} className="input" rows={6} value={f.message} onChange={e => setF({ ...f, message: e.target.value })} placeholder="What happened, or what would make this better?" />}</Field><Field label="Your contact details (optional)" hint="Only included if you fill this in.">{id => <input id={id} className="input" value={f.contact} onChange={e => setF({ ...f, contact: e.target.value })} />}</Field>

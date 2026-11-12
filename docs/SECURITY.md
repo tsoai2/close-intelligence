@@ -44,4 +44,4 @@
 
 ## Reporting a problem
 
-Use the Feedback button (type: Bug) and do not include passwords, keys or real balances.
+Use Send feedback in the user menu (type: Bug) and do not include passwords, keys or real balances.

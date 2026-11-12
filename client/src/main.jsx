@@ -1,9 +1,9 @@
 import { createRoot } from 'react-dom/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useApp, setApp, boot, switchEnv, signOut, useQuery, useSave, saveStore, api, request, net, prefetch, loadMe, toast, usePulse } from './api.js';
+import { useApp, setApp, boot, switchEnv, signOut, useQuery, useSave, saveStore, api, request, net, prefetch, loadMe, toast, usePulse, usePref } from './api.js';
 import { Icon, IconButton, Button, Modal, Drawer, Toasts, useRoute, navigate, href, A, openRecord, setParams, Select, Field, Note, Skeleton, dt, Avatar, useDebounced, can, Pill } from './ui.jsx';
 import { Today } from './views/Today.jsx';
-import { Close } from './views/Close.jsx';
+import { Close, isAccounting } from './views/Close.jsx';
 import { TaskDrawer } from './views/TaskDrawer.jsx';
 import { ProcessMap } from './views/ProcessMap.jsx';
 import { Documents, DocDrawer } from './views/Documents.jsx';
@@ -12,7 +12,7 @@ import { Reports } from './views/Reports.jsx';
 import { Admin } from './views/Admin.jsx';
 import { Assistant, Feedback, Portal } from './views/Panels.jsx';
 
-const NAV = [['today', 'Today', 'today', '/today'], ['close', 'Close', 'close', null], ['map', 'Process Map', 'map', null], ['documents', 'Documents', 'docs', '/documents'], ['insights', 'Insights', 'insights', null], ['reports', 'Reports', 'reports', null]];
+const NAV = [['today', 'Today', 'today', '/today'], ['close', 'Close', 'close', null], ['accounting', 'Accounting', 'table', null], ['map', 'Process Map', 'map', null], ['documents', 'Documents', 'docs', '/documents'], ['insights', 'Insights', 'insights', null], ['reports', 'Reports', 'reports', null]];
 const ADMIN = [['setup', 'Guided setup'], ['team', 'Team and roles'], ['templates', 'Templates and periods'], ['policies', 'Policies and thresholds'], ['calendar', 'Calendars'], ['integrations', 'Integrations'], ['ai', 'AI Connection'], ['audit', 'Audit trail']];
 
 function EnvSwitch() {
@@ -65,31 +65,32 @@ function ChangePassword({ onClose }) {
 function Header({ onMenu }) {
   const { me, env, periodId, entityId, assistant } = useApp(); const [open, setOpen] = useState(null); const route = useRoute(); const pulse = usePulse();
   useEffect(() => { const k = e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen('palette'); } if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement?.tagName)) { e.preventDefault(); setOpen('palette'); } }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, []);
-  const period = me.periods.find(p => p.id === periodId);
+  const period = me.periods.find(p => p.id === periodId); const [present, setPresent] = usePref('present', false); const usesEntity = route.section === 'documents' || route.section === 'map' || (route.section === 'close' && ['tasks', 'timeline', 'reconciliations', 'financials'].includes(route.sub));
+  useEffect(() => { document.documentElement.classList.toggle('present', !!present); return () => document.documentElement.classList.remove('present'); }, [present]);
   return <header className="header glass">
     <button type="button" className="iconbtn only-mobile" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
     <A to={href('today')} className="brand" aria-label="CLOSE INTELLIGENCE home"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span className="brand-text">CLOSE <b>INTELLIGENCE</b></span></A>
     <EnvSwitch />
     <div className="scope" aria-label="Current scope"><span className="scope-org" title={me.org.name}>{me.org.name}</span>
-      {me.entities.length > 0 && <Select label="Entity" value={entityId} onChange={v => setApp({ entityId: v === 'all' ? 'all' : +v })} options={[{ value: 'all', label: 'All entities' }, ...me.entities.map(e => ({ value: e.id, label: e.code }))]} />}
+      {me.entities.length > 0 && usesEntity && <Select label="Entity" value={entityId} onChange={v => setApp({ entityId: v === 'all' ? 'all' : +v })} options={[{ value: 'all', label: 'All entities' }, ...me.entities.map(e => ({ value: e.id, label: e.code }))]} />}
       {me.periods.length > 0 && <Select label="Period" value={periodId} onChange={v => setApp({ periodId: +v })} options={me.periods.map(p => ({ value: p.id, label: `${p.name}${p.status === 'locked' ? ' · locked' : p.status === 'reopened' ? ' · reopened' : ''}` }))} />}
       {period && <span className={`period-flag ${period.status}`}>{period.status === 'locked' ? <Icon name="lock" size={13} /> : null}</span>}</div>
-    <span className="grow" /><SaveIndicator />{me.clockPinned && <span className="clock" title="The demo clock is fixed so the scenario stays consistent."><Icon name="clock" size={13} /> Demo clock {dt(me.now)}</span>}
+    <span className="grow" /><SaveIndicator />{present && <button type="button" className="present-exit" onClick={() => setPresent(false)}>Exit presentation</button>}
     <button type="button" className="searchbtn" onClick={() => setOpen('palette')} aria-label="Search and commands"><Icon name="search" size={15} /><span>Search</span><kbd>Ctrl K</kbd></button>
     <IconButton icon="bell" label={`Notifications${me.unread ? ` (${me.unread} unread)` : ''}`} badge={me.unread || null} onClick={() => setOpen('notes')} />
     <IconButton icon="spark" label="Assistant" aria-pressed={assistant} onClick={() => setApp({ assistant: !assistant })} />
-    <IconButton icon="sun" label="Switch light or dark theme" onClick={toggleTheme} />
     <div className="menuwrap"><button type="button" className="userbtn" aria-haspopup="menu" aria-expanded={open === 'user'} onClick={() => setOpen(open === 'user' ? null : 'user')}><Avatar name={me.user.name} /><span className="only-wide">{me.user.name.split(' ')[0]}</span><Icon name="down" size={14} /></button>
-      {open === 'user' && <div className="menu" role="menu" onMouseLeave={() => setOpen(null)}><div className="menu-head"><strong>{me.user.name}</strong><span className="muted small">{me.user.roleLabel}{me.preview ? ' · demo preview' : ''}</span></div>
+      {open === 'user' && <div className="menu" role="menu" onMouseLeave={() => setOpen(null)}><div className="menu-head"><strong>{me.user.name}</strong><span className="muted small">{me.user.roleLabel}{me.preview ? ' · demo preview' : ''}</span>{me.clockPinned && <span className="clock muted small" title="The demo clock is fixed so the scenario stays consistent.">Demo clock {dt(me.now)}</span>}</div>
         {ADMIN.filter(a => a[0] !== 'audit' || can('manage') || me.user.role === 'auditor').map(a => <button key={a[0]} role="menuitem" type="button" onClick={() => { setOpen(null); navigate(href('admin', a[0])); }}>{a[1]}</button>)}<hr />
+        <button role="menuitem" type="button" aria-pressed={!!present} onClick={() => { setPresent(!present); setOpen(null); }}>{present ? 'Exit presentation mode' : 'Presentation mode'}</button><button role="menuitem" type="button" onClick={() => { toggleTheme(); setOpen(null); }}>Switch light or dark theme</button><button role="menuitem" type="button" onClick={() => { setOpen(null); setParams({ feedback: 1 }); }}>Send feedback</button><hr />
         {env === 'demo' ? <button role="menuitem" type="button" onClick={() => setOpen('demo')}>Demo controls: roles, scenarios, reset</button> : <><button role="menuitem" type="button" onClick={() => setOpen('password')}>Change password</button><button role="menuitem" type="button" onClick={() => { setOpen(null); signOut(); }}>Sign out</button></>}</div>}</div>
     {open === 'palette' && <Palette onClose={() => setOpen(null)} />}{open === 'notes' && <Notifications onClose={() => setOpen(null)} />}{open === 'password' && <ChangePassword onClose={() => setOpen(null)} />}{open === 'demo' && <DemoControls onClose={() => setOpen(null)} />}
     <span className="sr-only" aria-live="polite">{pulse ? 'Updated by a colleague' : ''}</span><span className="sr-only">{route.section}</span>
   </header>;
 }
-function Nav({ open, onClose }) { const { section } = useRoute(); const { periodId } = useApp();
-  return <nav className={`nav${open ? ' open' : ''}`} aria-label="Primary">{NAV.map(([id, label, icon, pre]) => <A key={id} to={href(id)} className={section === id ? 'nav-item active' : 'nav-item'} aria-current={section === id ? 'page' : undefined} onClick={onClose} onMouseEnter={() => pre && prefetch(pre)}><Icon name={icon} size={20} /><span>{label}</span></A>)}
-    <span className="grow" /><A to={href('admin', 'setup')} className={section === 'admin' ? 'nav-item active' : 'nav-item'} onClick={onClose}><Icon name="gear" size={20} /><span>Settings</span></A><span className="sr-only">{periodId}</span></nav>; }
+function Nav({ open, onClose }) { const { section, sub } = useRoute(); const { periodId } = useApp(); const here = section === 'close' && isAccounting(sub) ? 'accounting' : section;
+  return <nav className={`nav${open ? ' open' : ''}`} aria-label="Primary">{NAV.map(([id, label, icon, pre]) => <A key={id} to={id === 'accounting' ? href('close', 'reconciliations') : href(id)} title={label} className={here === id ? 'nav-item active' : 'nav-item'} aria-current={here === id ? 'page' : undefined} onClick={onClose} onMouseEnter={() => pre && prefetch(pre)}><Icon name={icon} size={20} /><span>{label}</span></A>)}
+    <span className="grow" /><A to={href('admin', 'setup')} title="Settings" className={section === 'admin' ? 'nav-item nav-settings active' : 'nav-item nav-settings'} onClick={onClose}><Icon name="gear" size={20} /><span>Settings</span></A><span className="sr-only">{periodId}</span></nav>; }
 
 function LiveAuth() {
   const { auth } = useApp(); const { params } = useRoute(); const invite = params.invite; const [f, setF] = useState({ orgName: '', name: '', email: '', password: '' }); const [err, setErr] = useState(null); const [busy, setBusy] = useState(false); const mode = invite ? 'invite' : auth?.bootstrapped ? 'login' : 'bootstrap';
@@ -113,10 +114,10 @@ function ConflictDialog() { const { conflict } = useApp(); if (!conflict) return
 function Shell() {
   const { me, env, booting } = useApp(); const route = useRoute(); const [menu, setMenu] = useState(false); const main = useRef(null);
   useEffect(() => { if (route.env !== env) switchEnv(route.env); }, [route.env]);
-  useEffect(() => { document.title = `${{ today: 'Today', close: 'Close', map: 'Process Map', documents: 'Documents', insights: 'Insights', reports: 'Reports', admin: 'Settings' }[route.section] || 'CLOSE INTELLIGENCE'} · CLOSE INTELLIGENCE (${env === 'demo' ? 'Demo' : 'Live'})`; }, [route.section, env]);
+  useEffect(() => { document.title = `${route.section === 'close' && isAccounting(route.sub) ? 'Accounting' : { today: 'Today', close: 'Close', map: 'Process Map', documents: 'Documents', insights: 'Insights', reports: 'Reports', admin: 'Settings' }[route.section] || 'CLOSE INTELLIGENCE'} · CLOSE INTELLIGENCE (${env === 'demo' ? 'Demo' : 'Live'})`; }, [route.section, route.sub, env]);
   if (booting && !me) return <div className="boot"><div className="brand-mark big spin" aria-hidden="true"><i /><i /><i /></div><p className="muted">Opening {env === 'demo' ? 'Demo' : 'Live'}…</p></div>;
-  if (!me) return <><div className="header glass header-min"><span className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span className="brand-text">CLOSE <b>INTELLIGENCE</b></span></span><EnvSwitch /><span className="grow" /><IconButton icon="sun" label="Switch theme" onClick={toggleTheme} /></div><LiveAuth /><Feedback /><Toasts /></>;
-  if (me.user.role === 'external') return <><div className="header glass header-min"><span className="brand"><span className="brand-text">CLOSE <b>INTELLIGENCE</b></span></span><span className={`envbadge env-${env}`}>{env}</span><span className="grow" /><Button small onClick={signOut}>Sign out</Button></div><Portal /><Feedback /><Toasts /></>;
+  if (!me) return <><div className="header glass header-min"><span className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span className="brand-text">CLOSE <b>INTELLIGENCE</b></span></span><EnvSwitch /><span className="grow" /><IconButton icon="sun" label="Switch theme" onClick={toggleTheme} /></div><LiveAuth /><Feedback button /><Toasts /></>;
+  if (me.user.role === 'external') return <><div className="header glass header-min"><span className="brand"><span className="brand-text">CLOSE <b>INTELLIGENCE</b></span></span><span className={`envbadge env-${env}`}>{env}</span><span className="grow" /><Button small onClick={signOut}>Sign out</Button></div><Portal /><Feedback button /><Toasts /></>;
   const View = { today: Today, close: Close, map: ProcessMap, documents: Documents, insights: Insights, reports: Reports, admin: Admin }[route.section] || Today;
   return <div className={`app env-${env}`}><a className="skip" href="#main">Skip to content</a><Header onMenu={() => setMenu(m => !m)} /><Nav open={menu} onClose={() => setMenu(false)} />
     <main id="main" ref={main} className="main" tabIndex={-1}><div key={route.section} className="page"><View /></div></main>

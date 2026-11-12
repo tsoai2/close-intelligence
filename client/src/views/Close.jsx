@@ -5,15 +5,18 @@ import { CloseDeck } from './Deck.jsx';
 import { PageHead } from './Today.jsx';
 import { Reconciliations, Journals, Financials, ImportWizard } from './Financial.jsx';
 
-const SUBS = [['overview', 'Overview'], ['tasks', 'Tasks'], ['timeline', 'Timeline'], ['reconciliations', 'Reconciliations'], ['journals', 'Journals'], ['financials', 'Financials'], ['requests', 'Requests'], ['completion', 'Completion']];
+const CLOSE_SUBS = [['overview', 'Overview'], ['tasks', 'Tasks'], ['timeline', 'Timeline'], ['requests', 'Requests'], ['completion', 'Completion']];
+const ACC_SUBS = [['reconciliations', 'Reconciliations'], ['journals', 'Journals'], ['financials', 'Financials']];
+export const isAccounting = sub => ACC_SUBS.some(s => s[0] === sub);
 export const bdLabel = n => (n == null ? '' : `BD ${n > 0 ? '+' : ''}${n}`);
 
 export function Close() {
   const { me, periodId } = useApp(); const route = useRoute(); const sub = route.sub || 'overview'; const period = me.periods.find(p => p.id === periodId);
   if (!period) return <Empty icon="close" title="No period is open" action={can('manage') ? <Button kind="primary" onClick={() => navigate(href('admin', 'templates'))}>Open a period</Button> : null}>A close manager opens a period from a checklist template. Until then there is nothing to show here.</Empty>;
   const View = { overview: Overview, tasks: Tasks, timeline: Timeline, reconciliations: Reconciliations, journals: Journals, financials: Financials, requests: Requests, completion: Completion }[sub] || Overview;
-  return <><PageHead title={`${period.name} close`} sub={<>Target close {dt(period.target_close)} · {period.status === 'locked' ? `locked ${dt(period.actual_close_at)}` : period.status}</>} />
-    <nav className="subnav" aria-label="Close sections"><ol className="crumbs"><li><A to={href('close')}>Close</A></li><li aria-current="page">{SUBS.find(s => s[0] === sub)?.[1]}</li></ol><Tabs label="Close sections" tabs={SUBS.map(([id, label]) => ({ id, label }))} value={sub} onChange={id => navigate(href('close', id))} /></nav>
+  const acc = isAccounting(sub); const SUBS = acc ? ACC_SUBS : CLOSE_SUBS; const area = acc ? 'Accounting' : 'Close';
+  return <><PageHead title={`${period.name} ${acc ? 'accounting' : 'close'}`} sub={<>Target close {dt(period.target_close)} · {period.status === 'locked' ? `locked ${dt(period.actual_close_at)}` : period.status}</>} />
+    <nav className="subnav" aria-label={`${area} sections`}><ol className="crumbs"><li><A to={href('close', SUBS[0][0])}>{area}</A></li><li aria-current="page">{SUBS.find(s => s[0] === sub)?.[1]}</li></ol><Tabs label={`${area} sections`} tabs={SUBS.map(([id, label]) => ({ id, label }))} value={sub} onChange={id => navigate(href('close', id))} /></nav>
     {period.status === 'locked' && <Note tone="info" icon="lock">This period is locked. Records are read-only until an authorised person reopens it with a reason (Completion tab).</Note>}
     <View pid={periodId} period={period} /></>;
 }
@@ -33,14 +36,11 @@ function Overview({ pid }) {
   return <Q q={q} skeleton={10}>{ov => { const t = ov.timeliness, c = ov.completion; const late = t.projected && t.projected > ov.period.targetClose; const m = Object.fromEntries(ov.metrics.map(x => [x.key, x])); const order = ['approved', 'submitted', 'in_progress', 'changes_requested', 'ready', 'waiting', 'blocked', 'not_started']; const total = order.reduce((a, s) => a + ov.counts[s], 0);
     const byId = Object.fromEntries((tq.data || []).map(x => [x.id, x]));
     return <>
-      <CloseDeck pid={pid} ov={ov} />
+      <CloseDeck pid={pid} ov={ov} tasks={tq.data} />
       <div className="grid2 dims">
-        <Card title="Timeliness" sub="Are we going to finish on time?" className="dim">
-          <div className="dates"><div><span className="eyebrow">Planned</span><div className="big">{dt(t.planned)}</div><span className="muted tiny">{t.definitions.planned}</span></div>
-            <div><span className="eyebrow">{ov.period.status === 'locked' ? 'Actual' : 'Projected'} {ov.period.status !== 'locked' && <Kind kind="calculated" />}</span><div className={`big ${ov.period.status === 'locked' ? '' : late ? 'text-warn' : 'text-ok'}`}>{dt(ov.period.status === 'locked' ? t.actual : t.projected)}</div><span className="muted tiny">{ov.period.status === 'locked' ? t.definitions.actual : t.definitions.projected}</span></div></div>
-          {t.projectedResource && t.projectedResource > (t.projected || '') && ov.period.status !== 'locked' && <Note tone="warn">Allowing for one task at a time per person, the projection is <strong>{dt(t.projectedResource)}</strong>. The earlier date assumes people can work in parallel.</Note>}
+        <Card title="Timeliness" sub="What the projection above rests on" className="dim">
           <button type="button" className="meter" onClick={() => setParams({ metric: 'overdue' })}><span>Due by now and approved</span><strong>{t.dueByNow.done} / {t.dueByNow.total}</strong><Progress value={t.dueByNow.done} max={t.dueByNow.total} tone={t.dueByNow.done < t.dueByNow.total ? 'warn' : 'ok'} label="Due by now and approved" /></button>
-          <p className="muted tiny">Estimate coverage: {t.coverage.tasksWithDuration} of {t.coverage.tasks} tasks have duration estimates{t.warnings.unboundedWaits.length ? `; ${t.warnings.unboundedWaits.length} waiting task(s) have no expected resolution date and their wait is not included` : ''}. Today is {bdLabel(ov.nowBd)}; target is {bdLabel(ov.period.targetBd)}. <span title={ov.period.day0Definition} className="dotted">What is Day 0?</span></p>
+          <details className="more"><summary>How the projection is estimated</summary><p className="muted small">Estimate coverage: {t.coverage.tasksWithDuration} of {t.coverage.tasks} tasks have duration estimates{t.warnings.unboundedWaits.length ? `; ${t.warnings.unboundedWaits.length} waiting task(s) have no expected resolution date and their wait is not included` : ''}. Today is {bdLabel(ov.nowBd)}; target is {bdLabel(ov.period.targetBd)}. {ov.period.day0Definition}</p></details>
           {ov.criticalPath.length > 0 && ov.period.status !== 'locked' && <p className="small">Driven by {ov.criticalPath.slice(0, 4).map((id, i) => <span key={id}>{i ? ' → ' : ''}<RecordLink target={{ type: 'task', id }}>{byId[id]?.key || '…'}</RecordLink></span>)}{ov.criticalPath.length > 4 ? ` → +${ov.criticalPath.length - 4} more` : ''}. <A to={href('map')}>Open Process Map</A></p>}
         </Card>
         <Card title="Quality" sub="Is the work behind the numbers sound? A finished checklist does not prove the statements are right." className="dim">
@@ -48,7 +48,6 @@ function Overview({ pid }) {
           {ov.icOpen > 0 && <p className="small"><Tone tone="warn">{ov.icOpen} open</Tone> intercompany item(s) — <A to={href('close', 'financials', { view: 'ic' })}>review matching</A></p>}
         </Card>
       </div>
-      <div className="stats stats-wide">{['overdue', 'blocked', 'reviews', 'rereview', 'evidence', 'highrisk', 'unassigned', 'requests', 'exceptions', 'prepared'].map(k => <Stat key={k} label={m[k].label} value={m[k].value} denom={m[k].denominator} tone={m[k].value && ['overdue', 'blocked', 'rereview', 'unassigned', 'requests'].includes(k) ? 'warn' : null} sub="Show calculation" onClick={() => setParams({ metric: k })} />)}</div>
       <MetricDrawer ov={ov} tasks={tq.data} />
     </>; }}</Q>;
 }
@@ -58,7 +57,7 @@ const EMPTY_F = { q: '', status: 'open', process: '', owner: '', risk: '', flag:
 function Tasks({ pid, period }) {
   const { entityId, me } = useApp(); const q = useQuery(`/periods/${pid}/tasks`); const sq = useQuery(`/periods/${pid}/schedule`); const vq = useQuery('/views'); const [f, setF] = usePref('tasks-f', EMPTY_F); const [page, setPage] = usePref('tasks-page', 0); const [sel, setSel] = useState(new Set()); const [modal, setModal] = useState(null); const users = useUsers(); const ent = useEntities(); const manage = can('manage') && period.status !== 'locked';
   const crit = useMemo(() => new Set((sq.data?.tasks || []).filter(t => t.critical).map(t => t.id)), [sq.data]);
-  const rows = useMemo(() => (q.data || []).filter(t => (entityId === 'all' || t.entity_id === entityId || t.entity_id == null) && (!f.q || (t.key + ' ' + t.name).toLowerCase().includes(f.q.toLowerCase())) && (!f.status || (f.status === 'open' ? !['approved', 'not_applicable'].includes(t.status) : t.status === f.status)) && (!f.process || t.process === f.process) && (!f.owner || (f.owner === 'none' ? !t.owner_id : [t.owner_id, t.preparer_id, t.reviewer_id].includes(+f.owner))) && (!f.risk || t.risk === f.risk)
+  const rows = useMemo(() => (q.data || []).filter(t => (entityId === 'all' || t.entity_id === entityId || t.entity_id == null) && (!f.q || (t.key + ' ' + t.name).toLowerCase().includes(f.q.toLowerCase())) && (!f.status || (f.status === 'open' ? !['approved', 'not_applicable'].includes(t.status) : f.status === 'attention' ? ['waiting', 'blocked', 'changes_requested'].includes(t.status) || (t.status === 'approved' && !!t.needs_rereview) : f.status === 'approved' ? t.status === 'approved' && !t.needs_rereview : t.status === f.status)) && (!f.process || t.process === f.process) && (!f.owner || (f.owner === 'none' ? !t.owner_id : [t.owner_id, t.preparer_id, t.reviewer_id].includes(+f.owner))) && (!f.risk || t.risk === f.risk)
     && (!f.flag || (f.flag === 'overdue' ? t.due_at < me.now && !['approved', 'not_applicable'].includes(t.status) : f.flag === 'critical' ? crit.has(t.id) : f.flag === 'rereview' ? t.needs_rereview : f.flag === 'evidence' ? t.evidence_have < t.evidence_need && ['submitted', 'approved'].includes(t.status) : true))), [q.data, f, entityId, crit, me.now]);
   const PER = 40; const pages = Math.max(1, Math.ceil(rows.length / PER)); const pg = Math.min(page, pages - 1); const shown = rows.slice(pg * PER, pg * PER + PER); const set = (k, v) => { setF({ ...f, [k]: v }); setPage(0); };
   const procs = [...new Set((q.data || []).map(t => t.process))].sort();
@@ -67,7 +66,7 @@ function Tasks({ pid, period }) {
   const bulk = async (action, value, note) => { try { const r = await api.post('/tasks/bulk', { ids: [...sel], action, value, note }); setSel(new Set()); setModal(null); toast(`${r.done.length} task(s) updated${r.failed.length ? `, ${r.failed.length} could not be changed (${r.failed[0].message})` : ''}.`, { kind: r.failed.length ? 'warn' : 'info', action: r.undo.length ? { label: 'Undo', run: async () => { for (const u of r.undo) await api.patch(`/tasks/${u.id}`, { fields: { [u.field]: u.value } }).catch(() => {}); } } : null, ttl: 8000 }); } catch (e) { if (!e.stale) toast(e.message, { kind: 'error' }); } };
   return <>
     <div className="toolbar"><input className="input grow" placeholder="Filter by key or name" aria-label="Filter tasks" value={f.q} onChange={e => set('q', e.target.value)} />
-      <Select label="Status" value={f.status} onChange={v => set('status', v)} options={[{ value: '', label: 'All statuses' }, { value: 'open', label: 'Open work' }, ...Object.keys(STATUS).slice(0, 9).map(s => ({ value: s, label: STATUS[s][0] }))]} />
+      <Select label="Status" value={f.status} onChange={v => set('status', v)} options={[{ value: '', label: 'All statuses' }, { value: 'open', label: 'Open work' }, { value: 'attention', label: 'Waiting, blocked, returned or re-review' }, ...Object.keys(STATUS).slice(0, 9).map(s => ({ value: s, label: STATUS[s][0] }))]} />
       <Select label="Process" value={f.process} onChange={v => set('process', v)} options={[{ value: '', label: 'All processes' }, ...procs]} />
       <Select label="Person" value={f.owner} onChange={v => set('owner', v)} options={[{ value: '', label: 'Anyone' }, { value: 'none', label: 'No owner' }, ...users.list.map(u => ({ value: u.id, label: u.name }))]} />
       <Select label="Flag" value={f.flag} onChange={v => set('flag', v)} options={[{ value: '', label: 'Any flag' }, { value: 'overdue', label: 'Overdue' }, { value: 'critical', label: 'Critical path' }, { value: 'rereview', label: 'Re-review required' }, { value: 'evidence', label: 'Missing evidence' }]} />
